@@ -1,0 +1,40 @@
+/* ============================================================
+   FONTS (MUST BE FIRST LINE ALWAYS)
+   ============================================================ */
+   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+   /* ============================================================
+      TAILWIND
+      ============================================================ */
+   @import "tailwindcss";
+   
+   /* ============================================================
+      BASE TOKENS
+      ============================================================ */
+   @layer base {
+     :root {
+       --teal-50: #e6f7f4;
+       --teal-100:#b3e8de;
+       --teal-400:#2ab8a0;
+       --teal-600:#1a8a78;
+       --teal-800:#0d4f45;
+   
+       --navy-900:#0b1f3a;
+       --slate-50:#f7f8fc;
+       --slate-100:#eef0f6;
+       --slate-200:#dde2ee;
+       --slate-400:#8e97b5;
+       --slate-600:#4a5580;
+       --slate-800:#1e2540;
+     }
+   
+     html {
+       font-family: 'Cairo', sans-serif;
+     }
+   
+     body {
+       margin: 0;
+       background: var(--slate-50);
+       direction: rtl;
+     }
+   }
