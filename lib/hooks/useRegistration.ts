@@ -4,17 +4,39 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export type Step1Data = {
-  first_name_ar: string; last_name_ar: string
-  first_name_en: string; last_name_en: string
-  date_of_birth: string; sex: 'M' | 'F'
-  nationality: string; marital_status: string; occupation: string
-  mobile_primary: string; email: string
-  governorate: string; district: string
-  emergency_name: string; emergency_relation: string; emergency_phone: string
-  referral_source: string; referring_provider: string
-  nid: string; insurance_id: string; passport: string
-}
+import { z } from "zod"
+
+export const schema = z.object({
+  first_name_ar: z.string(),
+  last_name_ar: z.string(),
+  first_name_en: z.string(),
+  last_name_en: z.string(),
+  date_of_birth: z.string(),
+  sex: z.enum(["M", "F"]),
+
+  nationality: z.string().default("Egyptian"),
+  marital_status: z.string().optional(),
+  occupation: z.string().optional(),
+
+  mobile_primary: z.string(),
+  email: z.string().optional(),
+
+  governorate: z.string().optional(),
+  district: z.string().optional(),
+
+  emergency_name: z.string(),
+  emergency_relation: z.string().optional(),
+  emergency_phone: z.string(),
+
+  referral_source: z.string().default("physician"),
+  referring_provider: z.string().optional(),
+
+  nid: z.string().optional(),
+  insurance_id: z.string().optional(),
+  passport: z.string().optional(), // مهم
+})
+
+export type Step1Data = z.infer<typeof schema>
 
 export function useRegistration() {
   const [step, setStep] = useState(1)
@@ -33,22 +55,22 @@ export function useRegistration() {
         .insert({
           mrn: '',   // trigger replaces this
           first_name_ar: data.first_name_ar,
-          last_name_ar:  data.last_name_ar,
+          last_name_ar: data.last_name_ar,
           first_name_en: data.first_name_en.toLowerCase(),
-          last_name_en:  data.last_name_en.toLowerCase(),
+          last_name_en: data.last_name_en.toLowerCase(),
           date_of_birth: data.date_of_birth,
-          sex:           data.sex,
-          nationality:   data.nationality,
+          sex: data.sex,
+          nationality: data.nationality || 'Egyptian',
           marital_status: data.marital_status || null,
-          occupation:    data.occupation || null,
+          occupation: data.occupation || null,
           mobile_primary: data.mobile_primary,
-          email:         data.email || null,
-          governorate:   data.governorate,
-          district:      data.district,
-          emergency_name:     data.emergency_name,
-          emergency_relation: data.emergency_relation,
-          emergency_phone:    data.emergency_phone,
-          referral_source:    data.referral_source || null,
+          email: data.email || null,
+          governorate: data.governorate || null,
+          district: data.district || null,
+          emergency_name: data.emergency_name,
+          emergency_relation: data.emergency_relation || null,
+          emergency_phone: data.emergency_phone,
+          referral_source: data.referral_source || 'physician',
           referring_provider: data.referring_provider || null,
         })
         .select('id,mrn')
@@ -58,9 +80,9 @@ export function useRegistration() {
 
       // Insert identity documents
       const identities = [
-        { id_type: 'NID',       id_number: data.nid },
+        { id_type: 'NID', id_number: data.nid },
         { id_type: 'INSURANCE', id_number: data.insurance_id },
-        { id_type: 'PASSPORT',  id_number: data.passport },
+        { id_type: 'PASSPORT', id_number: data.passport },
       ].filter(i => i.id_number?.trim())
 
       if (identities.length > 0) {

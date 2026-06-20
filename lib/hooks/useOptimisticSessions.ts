@@ -2,6 +2,14 @@
 import { useTransition, useOptimistic } from 'react'
 import type { ChemoSession } from './useChemoScheduler'
 
+// ── OPTIMISTIC ACTIONS TYPE ─────────────────────────────────
+export type SessionAction =
+  | { type: 'complete'; id: string }
+  | { type: 'postpone'; id: string; newDate: string }
+  | { type: 'labs_clear'; id: string }
+  | { type: 'add'; session: ChemoSession }
+
+// ── HOOK ────────────────────────────────────────────────────
 export function useOptimisticSessions(sessions: ChemoSession[]) {
   const [isPending, startTransition] = useTransition()
 
@@ -19,7 +27,7 @@ export function useOptimisticSessions(sessions: ChemoSession[]) {
         case 'labs_clear':
           return state.map(s => s.id === action.id ? { ...s, labs_cleared: true } : s)
         case 'add':
-          return [...state, action.session].sort((a,b) => a.session_date.localeCompare(b.session_date))
+          return [...state, action.session].sort((a, b) => a.session_date.localeCompare(b.session_date))
         default:
           return state
       }
@@ -58,10 +66,3 @@ export function useOptimisticSessions(sessions: ChemoSession[]) {
     optimisticComplete, optimisticPostpone, optimisticLabsClear,
   }
 }
-
-// ────────────────────────────────────────────────────────────
-// ERROR BOUNDARY & ERROR TYPES
-// lib/types/errors.ts + components/ErrorBoundary.tsx
-// ────────────────────────────────────────────────────────────
-
-// Typed error classes

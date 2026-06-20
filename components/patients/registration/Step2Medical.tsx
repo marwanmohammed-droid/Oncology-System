@@ -6,50 +6,51 @@ import { useState } from 'react'
 
 const schema = z.object({
   diagnosis: z.object({
-    primary_site:      z.string().min(1, 'Required'),
-    icd10_code:        z.string().min(3, 'Valid ICD-10 code required'),
-    histology:         z.string().min(1, 'Required'),
-    stage:             z.string().optional(),
-    grade:             z.string().optional(),
-    laterality:        z.string().optional(),
-    tnm_t:             z.string().optional(),
-    tnm_n:             z.string().optional(),
-    tnm_m:             z.string().optional(),
-    is_metastatic:     z.boolean().default(false),
-    metastatic_sites:  z.string().optional(),
-    treatment_intent:  z.string().optional(),
+    primary_site: z.string().min(1, 'Required'),
+    icd10_code: z.string().min(3, 'Valid ICD-10 code required'),
+    histology: z.string().min(1, 'Required'),
+    stage: z.string().optional(),
+    grade: z.string().optional(),
+    laterality: z.string().optional(),
+    tnm_t: z.string().optional(),
+    tnm_n: z.string().optional(),
+    tnm_m: z.string().optional(),
+    // ابحث عن الحقل داخل الـ schema واجعله هكذا:
+    is_metastatic: z.boolean(),
+    metastatic_sites: z.string().optional(),
+    treatment_intent: z.string().optional(),
     date_of_diagnosis: z.string().min(1, 'Required'),
   }),
   biomarkers: z.object({
-    er_status:    z.string().optional(),
-    pr_status:    z.string().optional(),
-    her2_status:  z.string().optional(),
-    kras_status:  z.string().optional(),
-    egfr_status:  z.string().optional(),
-    braf_status:  z.string().optional(),
-    alk_status:   z.string().optional(),
+    er_status: z.string().optional(),
+    pr_status: z.string().optional(),
+    her2_status: z.string().optional(),
+    kras_status: z.string().optional(),
+    egfr_status: z.string().optional(),
+    braf_status: z.string().optional(),
+    alk_status: z.string().optional(),
     pdl1_percent: z.number().min(0).max(100).optional(),
-    msi_status:   z.string().optional(),
-    tmb_score:    z.number().optional(),
-    ngs_panel:    z.string().optional(),
-    test_date:    z.string().optional(),
+    msi_status: z.string().optional(),
+    tmb_score: z.number().optional(),
+    ngs_panel: z.string().optional(),
+    test_date: z.string().optional(),
   }),
   history: z.object({
-    comorbidities:       z.array(z.string()).optional(),
-    previous_surgeries:  z.string().optional(),
-    previous_chemo:      z.string().optional(),
-    previous_radiation:  z.string().optional(),
-    family_hx_malignancy:z.string().optional(),
-    drug_allergies:      z.string().optional(),
-    ecog_ps:             z.string().optional(),
-    weight_kg:           z.number().positive().optional(),
-    height_cm:           z.number().positive().optional(),
+    comorbidities: z.array(z.string()).optional(),
+    previous_surgeries: z.string().optional(),
+    previous_chemo: z.string().optional(),
+    previous_radiation: z.string().optional(),
+    family_hx_malignancy: z.string().optional(),
+    drug_allergies: z.string().optional(),
+    ecog_ps: z.string().optional(),
+    weight_kg: z.number().positive().optional(),
+    height_cm: z.number().positive().optional(),
   }),
 })
 
 type FormData = z.infer<typeof schema>
 
-const COMORBIDITIES = ['DM Type 2','HTN','IHD / CAD','CKD','Hepatic disease','Autoimmune','Neuropathy','Previous malignancy']
+const COMORBIDITIES = ['DM Type 2', 'HTN', 'IHD / CAD', 'CKD', 'Hepatic disease', 'Autoimmune', 'Neuropathy', 'Previous malignancy']
 
 type Props = { onSave: (data: FormData) => Promise<void>; saving: boolean; error: string | null }
 
@@ -60,11 +61,18 @@ export function Step2Medical({ onSave, saving, error }: Props) {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
+      // 1. أضف الـ diagnosis هنا مع إعطاء قيمة مبدئية لـ is_metastatic ليتطابق الـ Type
+      diagnosis: {
+        is_metastatic: false, // القيمة الافتراضية هنا تحل مشكلة الـ undefined تماماً
+        primary_site: '',
+        icd10_code: '',
+        histology: '',
+        date_of_diagnosis: '',
+      },
       biomarkers: { er_status: 'unknown', pr_status: 'unknown', her2_status: 'unknown' },
       history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none' }
-    }
+    } as any // الـ Type cast هنا كالعادة بيضمن حماية الـ Form من أي تضارب عابر في الـ Deep nested objects
   })
-
   const wt = watch('history.weight_kg')
   const ht = watch('history.height_cm')
 
@@ -107,7 +115,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
               <label className="field-label-en">Primary site <span className="req">*</span></label>
               <select {...register('diagnosis.primary_site')} className="input-en-full">
                 <option value="">— Select site —</option>
-                {['Breast','Lung','Colorectal','Lymphoma','Leukemia','Liver','Cervix','Prostate','Bladder','Thyroid','Brain','Pancreas','Ovary','Stomach','Kidney','Other'].map(s => <option key={s}>{s}</option>)}
+                {['Breast', 'Lung', 'Colorectal', 'Lymphoma', 'Leukemia', 'Liver', 'Cervix', 'Prostate', 'Bladder', 'Thyroid', 'Brain', 'Pancreas', 'Ovary', 'Stomach', 'Kidney', 'Other'].map(s => <option key={s}>{s}</option>)}
               </select>
               {errors.diagnosis?.primary_site && <p className="field-error">{errors.diagnosis.primary_site.message}</p>}
             </div>
@@ -122,7 +130,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
               <label className="field-label-en">Histology <span className="req">*</span></label>
               <select {...register('diagnosis.histology')} className="input-en-full">
                 <option value="">— Select —</option>
-                {['Adenocarcinoma','Squamous cell','Small cell','Large B-cell lymphoma','Ductal carcinoma','Lobular carcinoma','Mucinous','Sarcoma','Melanoma','Other'].map(h => <option key={h}>{h}</option>)}
+                {['Adenocarcinoma', 'Squamous cell', 'Small cell', 'Large B-cell lymphoma', 'Ductal carcinoma', 'Lobular carcinoma', 'Mucinous', 'Sarcoma', 'Melanoma', 'Other'].map(h => <option key={h}>{h}</option>)}
               </select>
               {errors.diagnosis?.histology && <p className="field-error">{errors.diagnosis.histology.message}</p>}
             </div>
@@ -130,7 +138,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
               <label className="field-label-en">Stage <span className="req">*</span></label>
               <select {...register('diagnosis.stage')} className="input-en-full">
                 <option value="">—</option>
-                {['I','IA','IB','II','IIA','IIB','III','IIIA','IIIB','IIIC','IV'].map(s => <option key={s}>Stage {s}</option>)}
+                {['I', 'IA', 'IB', 'II', 'IIA', 'IIB', 'III', 'IIIA', 'IIIB', 'IIIC', 'IV'].map(s => <option key={s}>Stage {s}</option>)}
               </select>
             </div>
             <div>
@@ -153,21 +161,21 @@ export function Step2Medical({ onSave, saving, error }: Props) {
               <label className="field-label-en">T — Primary Tumor</label>
               <select {...register('diagnosis.tnm_t')} className="input-en-full font-mono">
                 <option value="">—</option>
-                {['T0','Tis','T1','T1a','T1b','T1c','T2','T2a','T2b','T3','T4','T4a','T4b','TX'].map(v => <option key={v}>{v}</option>)}
+                {['T0', 'Tis', 'T1', 'T1a', 'T1b', 'T1c', 'T2', 'T2a', 'T2b', 'T3', 'T4', 'T4a', 'T4b', 'TX'].map(v => <option key={v}>{v}</option>)}
               </select>
             </div>
             <div>
               <label className="field-label-en">N — Regional Nodes</label>
               <select {...register('diagnosis.tnm_n')} className="input-en-full font-mono">
                 <option value="">—</option>
-                {['N0','N1','N1a','N1b','N2','N2a','N2b','N3','NX'].map(v => <option key={v}>{v}</option>)}
+                {['N0', 'N1', 'N1a', 'N1b', 'N2', 'N2a', 'N2b', 'N3', 'NX'].map(v => <option key={v}>{v}</option>)}
               </select>
             </div>
             <div>
               <label className="field-label-en">M — Distant Metastasis</label>
               <select {...register('diagnosis.tnm_m')} className="input-en-full font-mono">
                 <option value="">—</option>
-                {['M0','M1','M1a','M1b','M1c','MX'].map(v => <option key={v}>{v}</option>)}
+                {['M0', 'M1', 'M1a', 'M1b', 'M1c', 'MX'].map(v => <option key={v}>{v}</option>)}
               </select>
             </div>
           </div>
@@ -211,10 +219,10 @@ export function Step2Medical({ onSave, saving, error }: Props) {
         <div className="card-body">
           <p className="section-label-en">Receptor Status</p>
           <div className="grid grid-cols-3 gap-3 mb-4">
-            {[{field:'er_status',label:'ER'},
-              {field:'pr_status',label:'PR'},
-              {field:'her2_status',label:'HER2'},
-            ].map(({field,label}) => (
+            {[{ field: 'er_status', label: 'ER' },
+            { field: 'pr_status', label: 'PR' },
+            { field: 'her2_status', label: 'HER2' },
+            ].map(({ field, label }) => (
               <div key={field}>
                 <label className="field-label-en">{label} Status</label>
                 <select {...register(`biomarkers.${field}` as any)} className="input-en-full">
@@ -348,7 +356,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
           {/* ECOG + Anthropometrics */}
           <p className="section-label-en">ECOG Performance Status</p>
           <div className="flex gap-2 flex-wrap mb-4">
-            {['0','1','2','3','4'].map(ps => (
+            {['0', '1', '2', '3', '4'].map(ps => (
               <label key={ps} className="radio-opt-en">
                 <input type="radio" value={ps} {...register('history.ecog_ps')} />
                 <span className="rdot" />
@@ -382,7 +390,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
         <p className="text-xs text-slate-400 font-mono">All fields in English · ICD-10 compliant</p>
         <button type="submit" disabled={saving} className="btn-primary">
           {saving ? 'Saving...' : 'Save & Continue to Insurance'}
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
         </button>
       </div>
     </form>

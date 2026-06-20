@@ -2,9 +2,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export type SessionStatus  = 'scheduled' | 'upcoming' | 'completed' | 'postponed' | 'cancelled' | 'ongoing'
-export type PlanStatus     = 'planned' | 'active' | 'on_hold' | 'completed' | 'discontinued' | 'cancelled'
-export type DrugRoute      = 'IV' | 'PO' | 'SC' | 'IM' | 'IT' | 'topical' | 'inhalation'
+export type SessionStatus = 'scheduled' | 'upcoming' | 'completed' | 'postponed' | 'cancelled' | 'ongoing'
+export type PlanStatus = 'planned' | 'active' | 'on_hold' | 'completed' | 'discontinued' | 'cancelled'
+export type DrugRoute = 'IV' | 'PO' | 'SC' | 'IM' | 'IT' | 'topical' | 'inhalation'
 
 export interface ChemoRegimen {
   id: string
@@ -130,16 +130,11 @@ export interface SessionDrug {
 // HOOK: useChemoRegimens
 // Fetches master protocol library
 // ────────────────────────────────────────────────────────────
-// lib/hooks/useChemoRegimens.ts
-
-import { useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
-
 export function useChemoRegimens() {
-  const [regimens, setRegimens]   = useState<ChemoRegimen[]>([])
-  const [drugs, setDrugs]         = useState<Record<string, RegimenDrug[]>>({})
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
+  const [regimens, setRegimens] = useState<ChemoRegimen[]>([])
+  const [drugs, setDrugs] = useState<Record<string, RegimenDrug[]>>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
   const fetchRegimens = useCallback(async () => {
@@ -163,17 +158,17 @@ export function useChemoRegimens() {
       setRegimens(regs || [])
       // Group drugs by regimen_id
       const grouped: Record<string, RegimenDrug[]> = {}
-      ;(allDrugs || []).forEach(d => {
-        if (!grouped[d.regimen_id]) grouped[d.regimen_id] = []
-        grouped[d.regimen_id].push(d)
-      })
+        ; (allDrugs || []).forEach(d => {
+          if (!grouped[d.regimen_id]) grouped[d.regimen_id] = []
+          grouped[d.regimen_id].push(d)
+        })
       setDrugs(grouped)
     } catch (e: any) {
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [supabase])
 
   useEffect(() => { fetchRegimens() }, [fetchRegimens])
 
@@ -183,7 +178,7 @@ export function useChemoRegimens() {
   // Helper: calculate actual dose from BSA
   const calcDose = (drug: RegimenDrug, bsa: number, modPct: number = 0): number => {
     let base: number
-    if (drug.dose_mg_flat)  base = drug.dose_mg_flat
+    if (drug.dose_mg_flat) base = drug.dose_mg_flat
     else if (drug.dose_mg_m2) base = drug.dose_mg_m2 * bsa
     else return 0
     const modified = base * (1 + modPct / 100)
@@ -194,9 +189,3 @@ export function useChemoRegimens() {
 
   return { regimens, drugs, loading, error, getRegimenDrugs, calcDose, refresh: fetchRegimens }
 }
-
-// ────────────────────────────────────────────────────────────
-// HOOK: useTreatmentPlans
-// Manage patient treatment plans
-// ────────────────────────────────────────────────────────────
-// lib/hooks/useTreatmentPlans.ts

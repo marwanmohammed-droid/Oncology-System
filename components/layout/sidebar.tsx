@@ -6,7 +6,21 @@ import { useRole } from '@/lib/hooks/useRole'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const NAV = [
+type NavItem = {
+  href: string
+  icon: string
+  labelAr: string
+  labelEn: string
+  badge?: string
+  doctorOnly?: boolean
+  adminOnly?: boolean
+}
+
+type NavGroup = {
+  group: string
+  items: NavItem[]
+}
+const NAV: NavGroup[] = [
   { group: 'Main', items: [
     { href: '/dashboard',         icon: '⊞', labelAr: 'لوحة التحكم',       labelEn: 'Dashboard' },
     { href: '/patients',          icon: '👤', labelAr: 'المرضى',            labelEn: 'Patients',    badge: '+' },

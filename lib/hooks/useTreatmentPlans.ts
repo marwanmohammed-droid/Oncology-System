@@ -1,12 +1,12 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { TreatmentPlan, ChemoRegimen } from './useChemoRegimens'
+import type { TreatmentPlan, ChemoRegimen, PlanStatus } from './useChemoRegimens'
 
 export function useTreatmentPlans(patientId?: string) {
-  const [plans, setPlans]     = useState<TreatmentPlan[]>([])
+  const [plans, setPlans] = useState<TreatmentPlan[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
   const fetchPlans = useCallback(async () => {

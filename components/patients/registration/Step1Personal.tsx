@@ -5,30 +5,36 @@ import { z } from 'zod'
 import type { Step1Data } from '@/lib/hooks/useRegistration'
 
 const schema = z.object({
-  first_name_ar:      z.string().min(2, 'الاسم الأول مطلوب'),
-  last_name_ar:       z.string().min(2, 'اسم الأب مطلوب'),
-  first_name_en:      z.string().min(2, 'First name required').regex(/^[a-zA-Z\s]+$/, 'English only'),
-  last_name_en:       z.string().min(2, 'Last name required').regex(/^[a-zA-Z\s]+$/, 'English only'),
-  date_of_birth:      z.string().min(1, 'تاريخ الميلاد مطلوب'),
-  sex:                z.enum(['M','F'], { required_error: 'الجنس مطلوب' }),
-  nationality:        z.string().default('Egyptian'),
-  marital_status:     z.string().optional(),
-  occupation:         z.string().optional(),
-  mobile_primary:     z.string().min(11, 'رقم الموبايل غير صحيح'),
-  email:              z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')),
-  governorate:        z.string().optional(),
-  district:           z.string().optional(),
-  postal_code:        z.string().optional(),
-  emergency_name:     z.string().min(2, 'اسم جهة الطوارئ مطلوب'),
-  emergency_relation: z.string().optional(),
-  emergency_phone:    z.string().min(11, 'رقم الطوارئ غير صحيح'),
-  referral_source:    z.string().optional(),
-  referring_provider: z.string().optional(),
-  first_visit_date:   z.string().optional(),
-  nid:                z.string().length(14, 'الرقم القومي 14 رقم').optional().or(z.literal('')),
-  insurance_id:       z.string().optional(),
-  passport:           z.string().optional(),
+  first_name_ar: z.string().min(2, 'الاسم الأول مطلوب'),
+  last_name_ar: z.string().min(2, 'اسم الأب مطلوب'),
+  first_name_en: z.string().min(2, 'First name required').regex(/^[a-zA-Z\s]+$/, 'English only'),
+  last_name_en: z.string().min(2, 'Last name required').regex(/^[a-zA-Z\s]+$/, 'English only'),
+  date_of_birth: z.string().min(1, 'تاريخ الميلاد مطلوب'),
+  sex: z.enum(['M', 'F'] as const, {
+    message: 'الجنس مطلوب',
+  }),
+  // تم إزالة .default() لأن useForm بيعتمد على defaultValues المكتوبة تحت
+  nationality: z.string().min(1, 'الجنسية مطلوبة'),
+  marital_status: z.string().optional().or(z.literal('')),
+  occupation: z.string().optional().or(z.literal('')),
+  mobile_primary: z.string().min(11, 'رقم الموبايل غير صحيح'),
+  email: z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')),
+  governorate: z.string().optional().or(z.literal('')),
+  district: z.string().optional().or(z.literal('')),
+  postal_code: z.string().optional().or(z.literal('')),
+  emergency_name: z.string().min(2, 'اسم جهة الطوارئ مطلوب'),
+  emergency_relation: z.string().optional().or(z.literal('')),
+  emergency_phone: z.string().min(11, 'رقم الطوارئ غير صحيح'),
+  referral_source: z.string().optional().or(z.literal('')),
+  referring_provider: z.string().optional().or(z.literal('')),
+  first_visit_date: z.string().optional().or(z.literal('')),
+  nid: z.string().length(14, 'الرقم القومي 14 رقم').optional().or(z.literal('')),
+  insurance_id: z.string().optional().or(z.literal('')),
+  passport: z.string().optional().or(z.literal('')),
 })
+
+// اشتقاق نوع البيانات بدقة (Zod Local Form Type)
+type LocalFormData = z.infer<typeof schema>
 
 type Props = {
   onSave: (data: Step1Data) => Promise<void>
@@ -37,16 +43,33 @@ type Props = {
 }
 
 export function Step1Personal({ onSave, saving, error }: Props) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<Step1Data>({
+  // الآن سيعمل الـ resolver بسلاسة لأن التيبس متطابقة 100%
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<LocalFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { nationality: 'Egyptian', referral_source: 'physician' }
+    defaultValues: {
+      first_name_ar: '',
+      last_name_ar: '',
+      first_name_en: '',
+      last_name_en: '',
+      date_of_birth: '',
+      sex: undefined,
+      nationality: 'Egyptian', // القيمة الافتراضية هنا تغني عن .default() في زوود
+      mobile_primary: '',
+      emergency_name: '',
+      emergency_phone: '',
+      referral_source: 'physician',
+    } as any
   })
 
   const nameAr = watch('first_name_ar')
   const nameEn = watch('first_name_en')
 
+  const onSubmit = (data: LocalFormData) => {
+    return onSave(data as unknown as Step1Data)
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSave)} className="space-y-5" dir="rtl">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" dir="rtl">
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
@@ -253,11 +276,11 @@ export function Step1Personal({ onSave, saving, error }: Props) {
         </div>
         <div className="card-body">
           <div className="flex gap-2 flex-wrap mb-3">
-            {['physician','hospital','self','trial'].map(src => (
+            {['physician', 'hospital', 'self', 'trial'].map(src => (
               <label key={src} className="radio-opt">
                 <input type="radio" value={src} {...register('referral_source')} />
                 <span className="rdot" />
-                {{physician:'طبيب محول · Physician',hospital:'إحالة مستشفى · Hospital',self:'ذاتي · Self',trial:'دراسة سريرية · Trial'}[src]}
+                {{ physician: 'طبيب محول · Physician', hospital: 'إحالة مستشفى · Hospital', self: 'ذاتي · Self', trial: 'دراسة سريرية · Trial' }[src as 'physician' | 'hospital' | 'self' | 'trial']}
               </label>
             ))}
           </div>
@@ -278,7 +301,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
         <p className="text-xs text-slate-400 font-mono">* Required fields · الحقول الإلزامية</p>
         <button type="submit" disabled={saving} className="btn-primary">
           {saving ? 'جارٍ الحفظ...' : 'حفظ والمتابعة للبيانات الطبية'}
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
         </button>
       </div>
     </form>

@@ -41,11 +41,11 @@ export default function ChemoSessionsPage() {
   })
 
   const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-    scheduled:  { label: 'مجدولة',  color: '#1a8a78', bg: '#e6f7f4' },
-    completed:  { label: 'مكتملة',  color: '#16a34a', bg: '#f0fdf4' },
-    postponed:  { label: 'مؤجلة',   color: '#b45309', bg: '#fff3cd' },
-    cancelled:  { label: 'ملغية',   color: '#e53e3e', bg: '#fde8e8' },
-    upcoming:   { label: 'قادمة',   color: '#b45309', bg: '#fff3cd' },
+    scheduled: { label: 'مجدولة', color: '#1a8a78', bg: '#e6f7f4' },
+    completed: { label: 'مكتملة', color: '#16a34a', bg: '#f0fdf4' },
+    postponed: { label: 'مؤجلة', color: '#b45309', bg: '#fff3cd' },
+    cancelled: { label: 'ملغية', color: '#e53e3e', bg: '#fde8e8' },
+    upcoming: { label: 'قادمة', color: '#b45309', bg: '#fff3cd' },
   }
 
   return (
@@ -185,7 +185,7 @@ export default function ChemoSessionsPage() {
           patients={patients}
           supabase={supabase}
           onClose={() => setShowNew(false)}
-          onSaved={(newSession) => {
+          onSaved={(newSession: any) => {
             setSessions(prev => [...prev, newSession])
             setShowNew(false)
           }}
