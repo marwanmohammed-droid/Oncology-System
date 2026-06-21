@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { ChemoSession } from './useChemoScheduler'
 
 export type NotificationChannel = 'sms' | 'whatsapp' | 'email' | 'push' | 'in_app'
-export type NotificationType    =
+export type NotificationType =
   | 'session_reminder_48h'
   | 'labs_reminder_72h'
   | 'session_day_morning'
@@ -40,23 +40,23 @@ export interface NotificationTemplate {
 const TEMPLATES: NotificationTemplate[] = [
   {
     type: 'session_reminder_48h',
-    message_ar: (v) => `مركز الأمل للأورام: تذكير — لديك جلسة كيماوي غداً ${v.date} الساعة ${v.time}. الرجاء إحضار تحاليل CBC + LFTs. استفسار: ${v.phone}`,
-    message_en: (v) => `Oncology Center: Reminder — Chemo session tomorrow ${v.date} at ${v.time}. Please bring CBC+LFT results. Info: ${v.phone}`,
+    message_ar: (v) => `مركز كابيتال مصر للأورام: تذكير — لديك جلسة كيماوي غداً ${v.date} الساعة ${v.time}. الرجاء إحضار تحاليل CBC + LFTs. استفسار: ${v.phone}`,
+    message_en: (v) => `Egypt Capital Oncology Center: Reminder — Chemo session tomorrow ${v.date} at ${v.time}. Please bring CBC+LFT results. Info: ${v.phone}`,
   },
   {
     type: 'labs_reminder_72h',
-    message_ar: (v) => `مركز الأمل للأورام: تحاليلك مطلوبة قبل جلسة ${v.protocol} بتاريخ ${v.session_date}. الرجاء إجراء CBC + LFTs قبل ${v.labs_due_date}.`,
-    message_en: (v) => `Oncology Center: Labs required before ${v.protocol} session on ${v.session_date}. Please complete CBC+LFTs by ${v.labs_due_date}.`,
+    message_ar: (v) => `مركز كابيتال مصر للأورام: تحاليلك مطلوبة قبل جلسة ${v.protocol} بتاريخ ${v.session_date}. الرجاء إجراء CBC + LFTs قبل ${v.labs_due_date}.`,
+    message_en: (v) => `Egypt Capital Oncology Center: Labs required before ${v.protocol} session on ${v.session_date}. Please complete CBC+LFTs by ${v.labs_due_date}.`,
   },
   {
     type: 'session_postponed',
-    message_ar: (v) => `مركز الأمل للأورام: تم تأجيل جلسة الكيماوي إلى ${v.new_date}. السبب: ${v.reason}. للاستفسار: ${v.phone}`,
-    message_en: (v) => `Oncology Center: Chemo session postponed to ${v.new_date}. Reason: ${v.reason}. Contact: ${v.phone}`,
+    message_ar: (v) => `مركز كابيتال مصر للأورام: تم تأجيل جلسة الكيماوي إلى ${v.new_date}. السبب: ${v.reason}. للاستفسار: ${v.phone}`,
+    message_en: (v) => `Egypt Capital Oncology Center: Chemo session postponed to ${v.new_date}. Reason: ${v.reason}. Contact: ${v.phone}`,
   },
   {
     type: 'preauth_approved',
-    message_ar: (v) => `مركز الأمل للأورام: تم الموافقة على التأمين لجلسة ${v.protocol} بتاريخ ${v.date}. رقم المرجع: ${v.ref}`,
-    message_en: (v) => `Oncology Center: Insurance pre-auth approved for ${v.protocol} on ${v.date}. Ref: ${v.ref}`,
+    message_ar: (v) => `مركز كابيتال للأورام: تم الموافقة على التأمين لجلسة ${v.protocol} بتاريخ ${v.date}. رقم المرجع: ${v.ref}`,
+    message_en: (v) => `Egypt Capital Oncology Center: Insurance pre-auth approved for ${v.protocol} on ${v.date}. Ref: ${v.ref}`,
   },
   {
     type: 'labs_critical',
@@ -67,8 +67,8 @@ const TEMPLATES: NotificationTemplate[] = [
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading]             = useState(false)
-  const [sending, setSending]             = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
   const supabase = createClient()
 
   // Fetch pending notifications
@@ -99,14 +99,14 @@ export function useNotifications() {
     if (!tpl) throw new Error(`No template for type: ${type}`)
 
     const entries = channels.map(ch => ({
-      patient_id:     patientId,
-      session_id:     sessionId,
+      patient_id: patientId,
+      session_id: sessionId,
       type,
-      channel:        ch,
-      message_ar:     tpl.message_ar(vars),
-      message_en:     tpl.message_en(vars),
-      scheduled_at:   scheduledAt.toISOString(),
-      status:         'pending' as const,
+      channel: ch,
+      message_ar: tpl.message_ar(vars),
+      message_en: tpl.message_en(vars),
+      scheduled_at: scheduledAt.toISOString(),
+      status: 'pending' as const,
       recipient_phone: ch === 'sms' || ch === 'whatsapp' ? recipientPhone : null,
     }))
 
@@ -122,17 +122,17 @@ export function useNotifications() {
   // Schedule all standard reminders for a session
   const scheduleSessionReminders = useCallback(async (session: ChemoSession) => {
     if (!session.patient) return
-    const pt       = session.patient
+    const pt = session.patient
     const sessDate = new Date(session.session_date)
-    const phone    = pt.mobile_primary
+    const phone = pt.mobile_primary
 
     const vars = {
       patient_name: `${pt.first_name_ar} ${pt.last_name_ar}`,
-      date:         session.session_date,
-      time:         session.session_time || '09:00',
-      protocol:     session.plan?.protocol_name || '',
+      date: session.session_date,
+      time: session.session_time || '09:00',
+      protocol: session.plan?.protocol_name || '',
       session_date: session.session_date,
-      phone:        '01XXXXXXXXX',
+      phone: '01XXXXXXXXX',
     }
 
     // 48h before — session reminder
@@ -185,8 +185,8 @@ export function useNotifications() {
     setNotifications(prev => prev.filter(n => n.id !== id))
   }, [])
 
-  const pendingCount  = notifications.filter(n => n.status === 'pending').length
-  const sentToday     = notifications.filter(n => n.sent_at?.startsWith(new Date().toISOString().split('T')[0])).length
+  const pendingCount = notifications.filter(n => n.status === 'pending').length
+  const sentToday = notifications.filter(n => n.sent_at?.startsWith(new Date().toISOString().split('T')[0])).length
 
   return {
     notifications, loading, sending, pendingCount, sentToday,
