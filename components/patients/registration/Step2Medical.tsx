@@ -15,7 +15,6 @@ const schema = z.object({
     tnm_t: z.string().optional(),
     tnm_n: z.string().optional(),
     tnm_m: z.string().optional(),
-    // ابحث عن الحقل داخل الـ schema واجعله هكذا:
     is_metastatic: z.boolean(),
     metastatic_sites: z.string().optional(),
     treatment_intent: z.string().optional(),
@@ -25,6 +24,7 @@ const schema = z.object({
     er_status: z.string().optional(),
     pr_status: z.string().optional(),
     her2_status: z.string().optional(),
+    ki67_percent: z.number().min(0).max(100).optional(),
     kras_status: z.string().optional(),
     egfr_status: z.string().optional(),
     braf_status: z.string().optional(),
@@ -33,6 +33,7 @@ const schema = z.object({
     msi_status: z.string().optional(),
     tmb_score: z.number().optional(),
     ngs_panel: z.string().optional(),
+    ihc_findings: z.string().optional(),
     test_date: z.string().optional(),
   }),
   history: z.object({
@@ -61,9 +62,8 @@ export function Step2Medical({ onSave, saving, error }: Props) {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      // 1. أضف الـ diagnosis هنا مع إعطاء قيمة مبدئية لـ is_metastatic ليتطابق الـ Type
       diagnosis: {
-        is_metastatic: false, // القيمة الافتراضية هنا تحل مشكلة الـ undefined تماماً
+        is_metastatic: false,
         primary_site: '',
         icd10_code: '',
         histology: '',
@@ -71,12 +71,11 @@ export function Step2Medical({ onSave, saving, error }: Props) {
       },
       biomarkers: { er_status: 'unknown', pr_status: 'unknown', her2_status: 'unknown' },
       history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none' }
-    } as any // الـ Type cast هنا كالعادة بيضمن حماية الـ Form من أي تضارب عابر في الـ Deep nested objects
+    } as any
   })
   const wt = watch('history.weight_kg')
   const ht = watch('history.height_cm')
 
-  // Auto-calculate BSA (Mosteller)
   function handleAnthro() {
     if (wt && ht) {
       const calc = Math.sqrt((wt * ht) / 3600).toFixed(2)
@@ -97,7 +96,6 @@ export function Step2Medical({ onSave, saving, error }: Props) {
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">{error}</div>}
 
-      {/* NOTE: All medical data in English */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2 text-sm text-amber-700">
         <span>⚠️</span>
         <span>All clinical data must be entered in English only — ICD-10, SNOMED, HL7 compliance required.</span>
@@ -154,7 +152,6 @@ export function Step2Medical({ onSave, saving, error }: Props) {
             </div>
           </div>
 
-          {/* TNM */}
           <p className="section-label-en">TNM Classification</p>
           <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
@@ -214,11 +211,11 @@ export function Step2Medical({ onSave, saving, error }: Props) {
       <div className="card">
         <div className="card-header">
           <span className="card-icon purple">🧬</span>
-          <div><p className="card-title">Biomarkers &amp; Molecular Profile</p><p className="card-subtitle">علامات الورم الجزيئية</p></div>
+          <div><p className="card-title">Biomarkers &amp; Molecular Profile</p><p className="card-subtitle">علامات الورم الجزيئية وفحوصات IHC</p></div>
         </div>
         <div className="card-body">
           <p className="section-label-en">Receptor Status</p>
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-4 gap-3 mb-4">
             {[{ field: 'er_status', label: 'ER' },
             { field: 'pr_status', label: 'PR' },
             { field: 'her2_status', label: 'HER2' },
@@ -233,6 +230,11 @@ export function Step2Medical({ onSave, saving, error }: Props) {
                 </select>
               </div>
             ))}
+            <div>
+              <label className="field-label-en">Ki-67 (%)</label>
+              <input type="number" {...register('biomarkers.ki67_percent', { valueAsNumber: true })}
+                min="0" max="100" placeholder="0–100" className="input-en-full" />
+            </div>
           </div>
           <p className="section-label-en">Key Mutations</p>
           <div className="grid grid-cols-3 gap-3 mb-4">
@@ -268,7 +270,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-3 mb-4">
             <div>
               <label className="field-label-en">ALK</label>
               <select {...register('biomarkers.alk_status')} className="input-en-full">
@@ -295,9 +297,37 @@ export function Step2Medical({ onSave, saving, error }: Props) {
               <input type="number" {...register('biomarkers.tmb_score', { valueAsNumber: true })} placeholder="e.g. 12" className="input-en-full" />
             </div>
           </div>
+
+          {/* IHC free-text findings */}
+          <p className="section-label-en">Immunohistochemistry (IHC) — Additional Findings</p>
+          <div className="mb-3">
+            <label className="field-label-en">
+              IHC detailed results
+              <span className="el">e.g. p53, p16, Ki-67 pattern, CK7, CK20, GATA3, TTF-1, Synaptophysin, Chromogranin, CD20, CD3...</span>
+            </label>
+            <textarea {...register('biomarkers.ihc_findings')} rows={4}
+              placeholder="Enter full IHC panel results and pathologist notes here..."
+              className="input-en-full" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="field-label-en">NGS Panel</label>
+              <select {...register('biomarkers.ngs_panel')} className="input-en-full">
+                <option value="">Not done</option>
+                <option value="Foundation One CDx">Foundation One CDx</option>
+                <option value="Oncomine">Oncomine</option>
+                <option value="Local panel">Local panel</option>
+                <option value="WES">WES</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">Test date</label>
+              <input type="date" {...register('biomarkers.test_date')} className="input-en-full" />
+            </div>
+          </div>
         </div>
       </div>
-
       {/* ── MEDICAL HISTORY ── */}
       <div className="card">
         <div className="card-header">

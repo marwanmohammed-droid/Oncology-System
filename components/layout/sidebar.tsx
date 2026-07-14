@@ -21,26 +21,40 @@ type NavGroup = {
   items: NavItem[]
 }
 const NAV: NavGroup[] = [
-  { group: 'Main', items: [
-    { href: '/dashboard',         icon: '⊞', labelAr: 'لوحة التحكم',       labelEn: 'Dashboard' },
-    { href: '/patients',          icon: '👤', labelAr: 'المرضى',            labelEn: 'Patients',    badge: '+' },
-    { href: '/appointments',      icon: '📅', labelAr: 'الحجوزات',          labelEn: 'Appointments' },
-    { href: '/chemo-sessions',    icon: '💊', labelAr: 'جلسات الكيماوي',   labelEn: 'Chemo Sessions' },
-    { href: '/protocols', icon: '🧬', labelAr: 'البروتوكولات', labelEn: 'Protocols' },
-  ]},
-  { group: 'Clinical', items: [
-    { href: '/clinical-trials',   icon: '🔬', labelAr: 'الدراسات السريرية', labelEn: 'Clinical Trials', doctorOnly: true },
-    { href: '/patient-portal',    icon: '🏠', labelAr: 'بوابة المريض',      labelEn: 'Patient Portal' },
-    { href: '/lab-results',       icon: '🧪', labelAr: 'نتائج المختبر',     labelEn: 'Lab Results',    doctorOnly: true },
-  ]},
-  { group: 'Finance', items: [
-    { href: '/billing',           icon: '💳', labelAr: 'الفواتير',          labelEn: 'Billing' },
-    { href: '/insurance',         icon: '🛡️', labelAr: 'التأمين',           labelEn: 'Insurance' },
-  ]},
-  { group: 'Admin', items: [
-    { href: '/reports',           icon: '📊', labelAr: 'التقارير',          labelEn: 'Reports',        adminOnly: true },
-    { href: '/settings',          icon: '⚙️', labelAr: 'الإعدادات',         labelEn: 'Settings',       adminOnly: true },
-  ]},
+  {
+    group: 'Main', items: [
+      { href: '/dashboard', icon: '⊞', labelAr: 'لوحة التحكم', labelEn: 'Dashboard' },
+      { href: '/patients', icon: '👤', labelAr: 'المرضى', labelEn: 'Patients', badge: '+' },
+      { href: '/appointments', icon: '📅', labelAr: 'الحجوزات', labelEn: 'Appointments' },
+      { href: '/chemo-sessions', icon: '💊', labelAr: 'جلسات الكيماوي', labelEn: 'Chemo Sessions' },
+      { href: '/protocols', icon: '🧬', labelAr: 'البروتوكولات', labelEn: 'Protocols' },
+    ]
+  },
+  {
+    group: 'Clinical', items: [
+      { href: '/clinical-trials', icon: '🔬', labelAr: 'الدراسات السريرية', labelEn: 'Clinical Trials', doctorOnly: true },
+      { href: '/patient-portal', icon: '🏠', labelAr: 'بوابة المريض', labelEn: 'Patient Portal' },
+      { href: '/lab-results', icon: '🧪', labelAr: 'نتائج المختبر', labelEn: 'Lab Results', doctorOnly: true },
+    ]
+  },
+  // أضف بعد جروب 'Clinical' مباشرة:
+  {
+    group: 'Pharmacy', items: [
+      { href: '/inventory', icon: '💉', labelAr: 'مخزون الأدوية', labelEn: 'Drug Inventory' },
+    ]
+  },
+  {
+    group: 'Finance', items: [
+      { href: '/billing', icon: '💳', labelAr: 'الفواتير', labelEn: 'Billing' },
+      { href: '/insurance', icon: '🛡️', labelAr: 'التأمين', labelEn: 'Insurance' },
+    ]
+  },
+  {
+    group: 'Admin', items: [
+      { href: '/reports', icon: '📊', labelAr: 'التقارير', labelEn: 'Reports', adminOnly: true },
+      { href: '/settings', icon: '⚙️', labelAr: 'الإعدادات', labelEn: 'Settings', adminOnly: true },
+    ]
+  },
 ]
 
 export function Sidebar() {
@@ -66,26 +80,24 @@ export function Sidebar() {
     }}>
 
       {/* Logo */}
-      <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-        <div style={{
-          width: 34, height: 34, background: '#2ab8a0', borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 9,
+      <div style={{
+        width: 34, height: 34, background: '#2ab8a0', borderRadius: 8,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 9,
+      }}>
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="10" r="8" stroke="white" strokeWidth="1.5" />
+          <path d="M7 10h6M10 7v6" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1.4 }}>
+        مركز كابيتال مصر للأورام
+        <span style={{
+          display: 'block', fontSize: 9, fontWeight: 400,
+          color: '#2ab8a0', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2,
+          fontFamily: 'DM Mono, monospace',
         }}>
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-            <circle cx="10" cy="10" r="8" stroke="white" strokeWidth="1.5"/>
-            <path d="M7 10h6M10 7v6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1.4 }}>
-          مركز الأمل للأورام
-          <span style={{
-            display: 'block', fontSize: 9, fontWeight: 400,
-            color: '#2ab8a0', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2,
-            fontFamily: 'DM Mono, monospace',
-          }}>
-            Oncology Center · v1.0
-          </span>
-        </div>
+          Egypt Capital Oncology Center
+        </span>
       </div>
 
       {/* Nav */}
@@ -165,7 +177,7 @@ export function Sidebar() {
           transition: 'all .15s',
         }}>
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-            <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           تسجيل الخروج · Logout
         </button>

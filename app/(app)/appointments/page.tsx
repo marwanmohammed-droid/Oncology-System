@@ -28,6 +28,7 @@ export default function AppointmentsPage() {
       const { data: apts } = await supabase
         .from('appointments')
         .select(`*, patient:patients(mrn, first_name_ar, last_name_ar)`)
+        .is('archived_at', null)   // ← إضافة جديدة
         .order('appointment_date', { ascending: true })
 
       setPatients(pts || [])

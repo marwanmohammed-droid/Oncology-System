@@ -114,6 +114,7 @@ export function usePatientList() {
           consents(status, is_required),
           insurance_policies(insurance_type, is_active)
         `)
+        .is('archived_at', null)   // ← إضافة جديدة
         .order('created_at', { ascending: false })
 
       if (err) throw err

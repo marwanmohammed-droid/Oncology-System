@@ -14,19 +14,21 @@ type Patient = {
   date_of_birth: string
   sex: string
   created_at: string
+  archived_at: string | null
 }
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [showArchived, setShowArchived] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from('patients')
-        .select('id, mrn, first_name_ar, last_name_ar, first_name_en, last_name_en, mobile_primary, date_of_birth, sex, created_at')
+        .select('id, mrn, first_name_ar, last_name_ar, first_name_en, last_name_en, mobile_primary, date_of_birth, sex, created_at, archived_at')
         .order('created_at', { ascending: false })
       setPatients(data || [])
       setLoading(false)
@@ -34,7 +36,10 @@ export default function PatientsPage() {
     load()
   }, [])
 
-  const filtered = patients.filter(p =>
+  const visiblePatients = patients.filter(p => showArchived ? !!p.archived_at : !p.archived_at)
+  const archivedCount = patients.filter(p => !!p.archived_at).length
+
+  const filtered = visiblePatients.filter(p =>
     p.first_name_ar.includes(search) ||
     p.last_name_ar.includes(search) ||
     p.mrn.toLowerCase().includes(search.toLowerCase()) ||
@@ -52,7 +57,7 @@ export default function PatientsPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>المرضى</h1>
           <p style={{ fontSize: 11, color: '#8e97b5', fontFamily: 'DM Mono', margin: '4px 0 0' }}>
-            Patient List · {patients.length} مريض
+            Patient List · {visiblePatients.length} مريض
           </p>
         </div>
         <Link href="/patients/new" style={{
@@ -62,6 +67,28 @@ export default function PatientsPage() {
         }}>
           + تسجيل مريض جديد
         </Link>
+      </div>
+
+      {/* Tabs: نشط / مؤرشف */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button onClick={() => setShowArchived(false)} style={{
+          padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+          background: !showArchived ? '#1a8a78' : '#fff',
+          color: !showArchived ? '#fff' : '#4a5580',
+          fontSize: 12, fontWeight: 600,
+          boxShadow: !showArchived ? 'none' : 'inset 0 0 0 1.5px #dde2ee',
+        }}>
+          نشط
+        </button>
+        <button onClick={() => setShowArchived(true)} style={{
+          padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+          background: showArchived ? '#b45309' : '#fff',
+          color: showArchived ? '#fff' : '#4a5580',
+          fontSize: 12, fontWeight: 600,
+          boxShadow: showArchived ? 'none' : 'inset 0 0 0 1.5px #dde2ee',
+        }}>
+          📦 مؤرشف {archivedCount > 0 && `(${archivedCount})`}
+        </button>
       </div>
 
       <div style={{
@@ -83,11 +110,11 @@ export default function PatientsPage() {
         <div style={{ textAlign: 'center', padding: 60, color: '#8e97b5' }}>جارٍ التحميل...</div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#8e97b5' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>{showArchived ? '📦' : '📭'}</div>
           <p style={{ fontWeight: 600, color: '#4a5580' }}>
-            {search ? 'لا توجد نتائج' : 'لا يوجد مرضى بعد'}
+            {search ? 'لا توجد نتائج' : showArchived ? 'لا يوجد مرضى مؤرشفون' : 'لا يوجد مرضى بعد'}
           </p>
-          {!search && (
+          {!search && !showArchived && (
             <Link href="/patients/new" style={{ color: '#1a8a78', fontSize: 13 }}>
               سجّل أول مريض →
             </Link>

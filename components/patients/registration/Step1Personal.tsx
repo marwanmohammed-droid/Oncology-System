@@ -1,40 +1,7 @@
 'use client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import type { Step1Data } from '@/lib/hooks/useRegistration'
-
-const schema = z.object({
-  first_name_ar: z.string().min(2, 'الاسم الأول مطلوب'),
-  last_name_ar: z.string().min(2, 'اسم الأب مطلوب'),
-  first_name_en: z.string().min(2, 'First name required').regex(/^[a-zA-Z\s]+$/, 'English only'),
-  last_name_en: z.string().min(2, 'Last name required').regex(/^[a-zA-Z\s]+$/, 'English only'),
-  date_of_birth: z.string().min(1, 'تاريخ الميلاد مطلوب'),
-  sex: z.enum(['M', 'F'] as const, {
-    message: 'الجنس مطلوب',
-  }),
-  // تم إزالة .default() لأن useForm بيعتمد على defaultValues المكتوبة تحت
-  nationality: z.string().min(1, 'الجنسية مطلوبة'),
-  marital_status: z.string().optional().or(z.literal('')),
-  occupation: z.string().optional().or(z.literal('')),
-  mobile_primary: z.string().min(11, 'رقم الموبايل غير صحيح'),
-  email: z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')),
-  governorate: z.string().optional().or(z.literal('')),
-  district: z.string().optional().or(z.literal('')),
-  postal_code: z.string().optional().or(z.literal('')),
-  emergency_name: z.string().min(2, 'اسم جهة الطوارئ مطلوب'),
-  emergency_relation: z.string().optional().or(z.literal('')),
-  emergency_phone: z.string().min(11, 'رقم الطوارئ غير صحيح'),
-  referral_source: z.string().optional().or(z.literal('')),
-  referring_provider: z.string().optional().or(z.literal('')),
-  first_visit_date: z.string().optional().or(z.literal('')),
-  nid: z.string().length(14, 'الرقم القومي 14 رقم').optional().or(z.literal('')),
-  insurance_id: z.string().optional().or(z.literal('')),
-  passport: z.string().optional().or(z.literal('')),
-})
-
-// اشتقاق نوع البيانات بدقة (Zod Local Form Type)
-type LocalFormData = z.infer<typeof schema>
+import { schema, type Step1Data } from '@/lib/hooks/useRegistration'
 
 type Props = {
   onSave: (data: Step1Data) => Promise<void>
@@ -43,8 +10,7 @@ type Props = {
 }
 
 export function Step1Personal({ onSave, saving, error }: Props) {
-  // الآن سيعمل الـ resolver بسلاسة لأن التيبس متطابقة 100%
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<LocalFormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<Step1Data>({
     resolver: zodResolver(schema),
     defaultValues: {
       first_name_ar: '',
@@ -52,21 +18,22 @@ export function Step1Personal({ onSave, saving, error }: Props) {
       first_name_en: '',
       last_name_en: '',
       date_of_birth: '',
-      sex: undefined,
-      nationality: 'Egyptian', // القيمة الافتراضية هنا تغني عن .default() في زوود
+      nationality: 'Egyptian',
       mobile_primary: '',
       emergency_name: '',
       emergency_phone: '',
       referral_source: 'physician',
-    } as any
+      first_visit_date: '',
+      mrn_sequence: '',
+    },
   })
 
-  const nameAr = watch('first_name_ar')
-  const nameEn = watch('first_name_en')
+  const firstVisitDate = watch('first_visit_date')
+  const mrnSequence = watch('mrn_sequence')
+  const mrnYear = firstVisitDate ? new Date(firstVisitDate).getFullYear() : new Date().getFullYear()
+  const mrnPreview = `${mrnYear}-${(mrnSequence || '').padStart(4, '0')}`
 
-  const onSubmit = (data: LocalFormData) => {
-    return onSave(data as unknown as Step1Data)
-  }
+  const onSubmit = (data: Step1Data) => onSave(data)
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" dir="rtl">
@@ -171,6 +138,58 @@ export function Step1Personal({ onSave, saving, error }: Props) {
         </div>
       </div>
 
+      {/* ── FILE NUMBER (MRN) ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">🔢</span>
+          <div><p className="card-title">رقم ملف المريض</p><p className="card-subtitle">Patient File Number (MRN)</p></div>
+        </div>
+        <div className="card-body">
+          <p className="hint" style={{ marginBottom: 10 }}>
+            السنة تُحسب تلقائيًا من تاريخ أول زيارة (أسفل)، وانت بتحدد الرقم التسلسلي بعدها يدويًا.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="field-label">
+                تاريخ أول زيارة <span className="req">*</span><span className="el">First visit date</span>
+              </label>
+              <input type="date" {...register('first_visit_date')} className="input-en" />
+              {errors.first_visit_date && <p className="field-error">{errors.first_visit_date.message}</p>}
+            </div>
+            <div>
+              <label className="field-label">
+                الرقم التسلسلي <span className="req">*</span><span className="el">Sequence number</span>
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  fontFamily: 'DM Mono, monospace', fontSize: 13, fontWeight: 700,
+                  color: '#8e97b5', whiteSpace: 'nowrap',
+                }}>
+                  {mrnYear}-
+                </span>
+                <input
+                  {...register('mrn_sequence')}
+                  placeholder="0001"
+                  maxLength={6}
+                  className="input-id"
+                  style={{ flex: 1 }}
+                />
+              </div>
+              {errors.mrn_sequence && <p className="field-error">{errors.mrn_sequence.message}</p>}
+            </div>
+          </div>
+          <div className="id-card" style={{ marginTop: 12 }}>
+            <p className="id-label">المعاينة <span className="id-tag">MRN</span></p>
+            <p style={{
+              fontFamily: 'DM Mono, monospace', fontSize: 18, fontWeight: 700,
+              color: '#1a8a78', margin: 0,
+            }}>
+              {mrnPreview}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* ── IDENTITIES ── */}
       <div className="card">
         <div className="card-header">
@@ -192,11 +211,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             <div className="id-card">
               <p className="id-label">جواز السفر <span className="id-tag">PASS</span></p>
               <input {...register('passport')} placeholder="A12345678" className="input-id" />
-            </div>
-            <div className="id-card bg-slate-50">
-              <p className="id-label">رقم ملف المريض <span className="id-tag">MRN</span></p>
-              <input value="PT-2024-####" readOnly className="input-id opacity-50 cursor-not-allowed" />
-              <p className="hint">يُنشأ تلقائياً · Auto-assigned</p>
             </div>
           </div>
         </div>
@@ -284,14 +298,10 @@ export function Step1Personal({ onSave, saving, error }: Props) {
               </label>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="field-label">اسم الطبيب / الجهة المحيلة<span className="el">Referring provider</span></label>
               <input {...register('referring_provider')} placeholder="Dr. / Hospital name" className="input-en" />
-            </div>
-            <div>
-              <label className="field-label">تاريخ أول زيارة<span className="el">First visit date</span></label>
-              <input type="date" {...register('first_visit_date')} className="input-en" />
             </div>
           </div>
         </div>

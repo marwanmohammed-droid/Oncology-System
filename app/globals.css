@@ -1,40 +1,480 @@
 /* ============================================================
    FONTS (MUST BE FIRST LINE ALWAYS)
    ============================================================ */
-   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
-   /* ============================================================
-      TAILWIND
-      ============================================================ */
-   @import "tailwindcss";
-   
-   /* ============================================================
-      BASE TOKENS
-      ============================================================ */
-   @layer base {
-     :root {
-       --teal-50: #e6f7f4;
-       --teal-100:#b3e8de;
-       --teal-400:#2ab8a0;
-       --teal-600:#1a8a78;
-       --teal-800:#0d4f45;
-   
-       --navy-900:#0b1f3a;
-       --slate-50:#f7f8fc;
-       --slate-100:#eef0f6;
-       --slate-200:#dde2ee;
-       --slate-400:#8e97b5;
-       --slate-600:#4a5580;
-       --slate-800:#1e2540;
-     }
-   
-     html {
-       font-family: 'Cairo', sans-serif;
-     }
-   
-     body {
-       margin: 0;
-       background: var(--slate-50);
-       direction: rtl;
-     }
-   }
+/* ============================================================
+   TAILWIND
+   ============================================================ */
+@import "tailwindcss";
+
+/* ============================================================
+   BASE TOKENS
+   ============================================================ */
+@layer base {
+  :root {
+    --teal-50: #e6f7f4;
+    --teal-100: #b3e8de;
+    --teal-400: #2ab8a0;
+    --teal-600: #1a8a78;
+    --teal-800: #0d4f45;
+
+    --navy-900: #0b1f3a;
+    --slate-50: #f7f8fc;
+    --slate-100: #eef0f6;
+    --slate-200: #dde2ee;
+    --slate-400: #8e97b5;
+    --slate-600: #4a5580;
+    --slate-800: #1e2540;
+  }
+
+  html {
+    font-family: 'Cairo', sans-serif;
+  }
+
+  body {
+    margin: 0;
+    background: var(--slate-50);
+    direction: rtl;
+  }
+}
+
+/* ============================================================
+   REGISTRATION FORM COMPONENTS (Step1-4)
+   ============================================================ */
+@layer components {
+
+  /* ── Cards ── */
+  .card {
+    background: #fff;
+    border: 1.5px solid var(--slate-200);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--slate-100);
+  }
+
+  .card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .card-icon.teal {
+    background: var(--teal-50);
+    color: var(--teal-600);
+  }
+
+  .card-icon.navy {
+    background: var(--slate-100);
+    color: var(--navy-900);
+  }
+
+  .card-icon.amber {
+    background: #fff3cd;
+    color: #b45309;
+  }
+
+  .card-icon.red {
+    background: #fde8e8;
+    color: #e53e3e;
+  }
+
+  .card-icon.purple {
+    background: #faf5ff;
+    color: #9333ea;
+  }
+
+  .card-icon.green {
+    background: var(--teal-50);
+    color: var(--teal-600);
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy-900);
+    margin: 0;
+  }
+
+  .card-subtitle {
+    font-size: 11px;
+    color: var(--slate-400);
+    font-family: 'DM Mono', monospace;
+    margin: 0;
+  }
+
+  .card-body {
+    padding: 16px 20px;
+  }
+
+  /* ── Labels ── */
+  .section-label,
+  .section-label-en {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--slate-400);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 12px;
+  }
+
+  .field-label,
+  .field-label-en {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--slate-600);
+    margin-bottom: 6px;
+  }
+
+  .field-error {
+    font-size: 11px;
+    color: #e53e3e;
+    margin-top: 4px;
+  }
+
+  .req {
+    color: #e53e3e;
+  }
+
+  .el {
+    font-size: 10px;
+    color: var(--slate-400);
+    font-family: 'DM Mono', monospace;
+    font-weight: 400;
+  }
+
+  .lang-tag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .lang-tag.ar {
+    background: var(--teal-50);
+    color: var(--teal-600);
+  }
+
+  .lang-tag.en {
+    background: var(--slate-100);
+    color: var(--slate-600);
+  }
+
+  /* ── Inputs ── */
+  .input-ar,
+  .input-en,
+  .input-en-full,
+  .input-select,
+  .input-id {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1.5px solid var(--slate-200);
+    border-radius: 7px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+
+  .input-ar {
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+  }
+
+  .input-en {
+    direction: ltr;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .input-en-full {
+    direction: ltr;
+  }
+
+  .input-id {
+    direction: ltr;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: .05em;
+  }
+
+  .input-ar:focus,
+  .input-en:focus,
+  .input-en-full:focus,
+  .input-select:focus,
+  .input-id:focus {
+    border-color: var(--teal-400);
+    box-shadow: 0 0 0 3px var(--teal-50);
+  }
+
+  /* ── ID cards ── */
+  .id-card {
+    border: 1.5px dashed var(--slate-200);
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--slate-50);
+  }
+
+  .id-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--slate-600);
+    margin-bottom: 6px;
+  }
+
+  .id-tag {
+    font-size: 8px;
+    background: var(--navy-900);
+    color: var(--teal-400);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .hint {
+    font-size: 10px;
+    color: var(--slate-400);
+    margin-top: 4px;
+  }
+
+  /* ── Radios ── */
+  .radio-opt,
+  .radio-opt-en {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    padding: 8px 12px;
+    border: 1.5px solid var(--slate-200);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .radio-opt.sel,
+  .radio-opt-en.sel {
+    border-color: var(--teal-400);
+    background: var(--teal-50);
+    color: var(--teal-600);
+    font-weight: 600;
+  }
+
+  .radio-opt input,
+  .radio-opt-en input {
+    display: none;
+  }
+
+  .rdot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1.5px solid var(--slate-200);
+    flex-shrink: 0;
+  }
+
+  .radio-opt.sel .rdot,
+  .radio-opt-en.sel .rdot {
+    border-color: var(--teal-600);
+    background: var(--teal-600);
+  }
+
+  /* ── Tag pills (comorbidities) ── */
+  .tag-pill {
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--slate-200);
+    cursor: pointer;
+    transition: all .15s;
+    background: #fff;
+  }
+
+  .tag-pill-off {
+    border-color: var(--slate-200);
+    color: var(--slate-600);
+    background: #fff;
+  }
+
+  .tag-pill-on {
+    border-color: var(--teal-400);
+    background: var(--teal-50);
+    color: var(--teal-600);
+    font-weight: 600;
+  }
+
+  /* ── Insurance table ── */
+  .ins-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .ins-table th {
+    text-align: left;
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--slate-400);
+    padding: 8px;
+    border-bottom: 1px solid var(--slate-100);
+  }
+
+  .ins-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--slate-100);
+  }
+
+  .ins-cell {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--slate-200);
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+  }
+
+  /* ── Consents ── */
+  .consent-item {
+    border: 1.5px solid var(--slate-200);
+    border-radius: 12px;
+    padding: 16px;
+    background: #fff;
+  }
+
+  .consent-item.consent-signed {
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+
+  .consent-item.consent-optional {
+    border-style: dashed;
+  }
+
+  .consent-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .consent-title-ar {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy-900);
+    margin: 0;
+  }
+
+  .consent-title-en {
+    font-size: 10px;
+    color: var(--slate-400);
+    font-family: 'DM Mono', monospace;
+    margin: 2px 0 0;
+  }
+
+  .consent-desc {
+    font-size: 12px;
+    color: var(--slate-600);
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  .consent-desc-en {
+    font-size: 11px;
+    color: var(--slate-400);
+    margin-top: 4px;
+    line-height: 1.6;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .consent-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--slate-100);
+  }
+
+  .consent-date {
+    font-size: 10px;
+  }
+
+  .sb-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+
+  .sb-req {
+    background: #fff3cd;
+    color: #b45309;
+  }
+
+  .sb-opt {
+    background: var(--slate-100);
+    color: var(--slate-600);
+  }
+
+  .sb-done {
+    background: #f0fdf4;
+    color: #16a34a;
+  }
+
+  .sign-btn {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 8px;
+    background: var(--teal-600);
+    color: #fff;
+    cursor: pointer;
+    border: none;
+  }
+
+  .sign-btn-done {
+    background: #f0fdf4;
+    color: #16a34a;
+    cursor: not-allowed;
+  }
+
+  /* ── Primary button ── */
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 9px;
+    background: var(--teal-600);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-primary:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+}

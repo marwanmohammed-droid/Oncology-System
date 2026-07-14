@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useMedicalRecord } from '@/lib/hooks/useMedicalRecord'
 
 export default function PatientProfilePage() {
   const { id } = useParams()
@@ -211,11 +212,7 @@ export default function PatientProfilePage() {
 
         {/* MEDICAL TAB */}
         {activeTab === 'medical' && (
-          <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 24, textAlign: 'center', color: '#8e97b5' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>🔬</div>
-            <p style={{ fontWeight: 600, color: '#4a5580' }}>السجل الطبي الكامل</p>
-            <p style={{ fontSize: 12 }}>قيد التطوير — سيتم إضافته قريباً</p>
-          </div>
+          <MedicalTabContent patientId={id as string} />
         )}
 
         {/* CONSENTS TAB */}
@@ -237,6 +234,93 @@ export default function PatientProfilePage() {
         )}
 
       </div>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
+// MedicalTabContent — محتوى تبويب "السجل الطبي"
+// ────────────────────────────────────────────────────────────
+function MedicalTabContent({ patientId }: { patientId: string }) {
+  const { data, loading } = useMedicalRecord(patientId)
+
+  if (loading) {
+    return (
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 40, textAlign: 'center', color: '#8e97b5' }}>
+        جارٍ التحميل...
+      </div>
+    )
+  }
+  if (!data) return null
+
+  const { diagnoses, treatmentPlans, chemoSessions } = data
+  const completedSessions = chemoSessions.filter((s: any) => s.status === 'completed')
+
+  const reportLinkStyle: React.CSSProperties = {
+    background: '#2ab8a0',
+    color: '#0b1f3a',
+    textDecoration: 'none',
+    padding: '10px 20px',
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    whiteSpace: 'nowrap',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #0b1f3a, #1e4580)', borderRadius: 14,
+        padding: '18px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: 0 }}>التقرير الطبي الكامل</p>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', margin: '4px 0 0' }}>
+            تجميع كل البيانات الإكلينيكية للمريض في تقرير واحد قابل للطباعة والتصدير كـ PDF
+          </p>
+        </div>
+        <a href={`/medical-report/${patientId}`} target="_blank" rel="noopener noreferrer" style={reportLinkStyle}>
+          عرض التقرير الكامل
+        </a>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: '16px 18px' }}>
+          <p style={{ fontSize: 24, fontWeight: 700, color: '#0b1f3a', margin: 0, fontFamily: 'DM Mono' }}>{diagnoses.length}</p>
+          <p style={{ fontSize: 11, color: '#8e97b5', margin: '4px 0 0' }}>تشخيصات مسجلة</p>
+        </div>
+        <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: '16px 18px' }}>
+          <p style={{ fontSize: 24, fontWeight: 700, color: '#1a8a78', margin: 0, fontFamily: 'DM Mono' }}>{treatmentPlans.length}</p>
+          <p style={{ fontSize: 11, color: '#8e97b5', margin: '4px 0 0' }}>خطط علاج</p>
+        </div>
+        <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: '16px 18px' }}>
+          <p style={{ fontSize: 24, fontWeight: 700, color: '#16a34a', margin: 0, fontFamily: 'DM Mono' }}>{completedSessions.length} / {chemoSessions.length}</p>
+          <p style={{ fontSize: 11, color: '#8e97b5', margin: '4px 0 0' }}>جلسات مكتملة</p>
+        </div>
+      </div>
+
+      {diagnoses[0] && (
+        <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6' }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>آخر تشخيص</p>
+          </div>
+          <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            {[
+              ['الموقع', diagnoses[0].primary_site],
+              ['المرحلة', diagnoses[0].stage || '—'],
+              ['تاريخ التشخيص', diagnoses[0].date_of_diagnosis],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <p style={{ fontSize: 10, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>{k}</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#1e2540', margin: '2px 0 0' }}>{v}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

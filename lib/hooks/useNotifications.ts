@@ -1,7 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { ChemoSession } from './useChemoScheduler'
+import type { ChemoSession } from './useChemoRegimens'
 
 export type NotificationChannel = 'sms' | 'whatsapp' | 'email' | 'push' | 'in_app'
 export type NotificationType =
