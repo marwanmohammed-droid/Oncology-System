@@ -217,20 +217,12 @@ export default function PatientProfilePage() {
 
         {/* CONSENTS TAB */}
         {activeTab === 'consents' && (
-          <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 24, textAlign: 'center', color: '#8e97b5' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
-            <p style={{ fontWeight: 600, color: '#4a5580' }}>الموافقات</p>
-            <p style={{ fontSize: 12 }}>قيد التطوير — سيتم إضافته قريباً</p>
-          </div>
+          <ConsentsTabContent patientId={id as string} supabase={supabase} />
         )}
 
         {/* FINANCIAL TAB */}
         {activeTab === 'financial' && (
-          <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 24, textAlign: 'center', color: '#8e97b5' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
-            <p style={{ fontWeight: 600, color: '#4a5580' }}>المالية والتأمين</p>
-            <p style={{ fontSize: 12 }}>قيد التطوير — سيتم إضافته قريباً</p>
-          </div>
+          <FinancialTabContent patientId={id as string} supabase={supabase} />
         )}
 
       </div>
@@ -321,6 +313,267 @@ function MedicalTabContent({ patientId }: { patientId: string }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
+// ConsentsTabContent — محتوى تبويب "الموافقات"
+// ────────────────────────────────────────────────────────────
+const CONSENT_LABELS: Record<string, { ar: string; en: string; required: boolean }> = {
+  general_treatment: { ar: 'الموافقة العامة على العلاج', en: 'General Treatment Consent', required: true },
+  chemotherapy: { ar: 'الموافقة على العلاج الكيماوي', en: 'Chemotherapy Informed Consent', required: true },
+  data_privacy: { ar: 'حفظ واستخدام البيانات الطبية', en: 'Data Privacy & HIPAA Consent', required: true },
+  photography: { ar: 'التصوير والتوثيق التعليمي', en: 'Photography & Documentation', required: false },
+  research_trials: { ar: 'المشاركة في الدراسات السريرية', en: 'Clinical Research & Trials', required: false },
+  telemedicine: { ar: 'الاستشارة عن بُعد', en: 'Telemedicine & Remote Consultation', required: false },
+}
+
+function ConsentsTabContent({ patientId, supabase }: { patientId: string; supabase: any }) {
+  const [consents, setConsents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('consents')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('consent_type')
+      setConsents(data || [])
+      setLoading(false)
+    }
+    load()
+  }, [patientId])
+
+  if (loading) {
+    return (
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 40, textAlign: 'center', color: '#8e97b5' }}>
+        جارٍ التحميل...
+      </div>
+    )
+  }
+
+  if (consents.length === 0) {
+    return (
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 40, textAlign: 'center', color: '#8e97b5' }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
+        <p style={{ fontWeight: 600, color: '#4a5580' }}>لا توجد موافقات مسجلة</p>
+        <p style={{ fontSize: 12, marginTop: 4 }}>الموافقات تُنشأ تلقائيًا عند تسجيل المريض</p>
+      </div>
+    )
+  }
+
+  const required = consents.filter((c: any) => c.is_required)
+  const optional = consents.filter((c: any) => !c.is_required)
+  const requiredSignedCount = required.filter((c: any) => c.status === 'signed').length
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Progress summary */}
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>الموافقات الإلزامية الموقعة</p>
+          <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: '2px 0 0' }}>Required Consents Signed</p>
+        </div>
+        <div style={{ textAlign: 'left' }}>
+          <span style={{ fontSize: 28, fontWeight: 700, color: requiredSignedCount === required.length ? '#16a34a' : '#b45309', fontFamily: 'DM Mono' }}>
+            {requiredSignedCount}
+          </span>
+          <span style={{ fontSize: 13, color: '#8e97b5' }}> / {required.length}</span>
+        </div>
+      </div>
+
+      {/* Required consents */}
+      <ConsentGroup title="الموافقات الإلزامية" subtitle="Required Consents" items={required} />
+
+      {/* Optional consents */}
+      {optional.length > 0 && (
+        <ConsentGroup title="الموافقات الاختيارية" subtitle="Optional Consents" items={optional} />
+      )}
+    </div>
+  )
+}
+
+function ConsentGroup({ title, subtitle, items }: { title: string; subtitle: string; items: any[] }) {
+  return (
+    <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6' }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>{title}</p>
+        <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: '2px 0 0' }}>{subtitle}</p>
+      </div>
+      <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {items.map((c: any) => {
+          const meta = CONSENT_LABELS[c.consent_type] || { ar: c.consent_type, en: c.consent_type }
+          const signed = c.status === 'signed'
+          return (
+            <div key={c.id} style={{
+              border: `1.5px solid ${signed ? 'rgba(22,163,74,.25)' : '#dde2ee'}`,
+              background: signed ? '#f0fdf4' : '#fafbfd',
+              borderRadius: 10, padding: '12px 16px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>{meta.ar}</p>
+                <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: '2px 0 0' }}>{meta.en}</p>
+                {signed && c.signed_at && (
+                  <p style={{ fontSize: 9, color: '#16a34a', margin: '4px 0 0', fontFamily: 'DM Mono' }}>
+                    وُقّعت في {new Date(c.signed_at).toLocaleString('ar-EG')}
+                  </p>
+                )}
+              </div>
+              <span style={{
+                fontSize: 10, padding: '3px 12px', borderRadius: 20, fontWeight: 700,
+                background: signed ? '#16a34a' : '#fff3cd',
+                color: signed ? '#fff' : '#b45309',
+              }}>
+                {signed ? '✓ موقّعة' : 'غير موقّعة'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
+// FinancialTabContent — محتوى تبويب "المالية"
+// ────────────────────────────────────────────────────────────
+const PAYMENT_METHOD_AR: Record<string, string> = {
+  cash: 'نقدي', installment: 'تقسيط', ngo: 'خيري / NGO',
+  clinical_trial: 'دراسة سريرية', exemption: 'إعفاء',
+}
+const INSURANCE_TYPE_AR: Record<string, string> = {
+  government: 'تأمين حكومي', private: 'تأمين خاص',
+  comprehensive: 'تأمين شامل', self_pay: 'بدون تأمين',
+}
+
+function FinancialTabContent({ patientId, supabase }: { patientId: string; supabase: any }) {
+  const [insurance, setInsurance] = useState<any>(null)
+  const [payment, setPayment] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const [{ data: ins }, { data: pay }] = await Promise.all([
+        supabase.from('insurance_policies').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('payment_plans').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ])
+      setInsurance(ins)
+      setPayment(pay)
+      setLoading(false)
+    }
+    load()
+  }, [patientId])
+
+  if (loading) {
+    return (
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 40, textAlign: 'center', color: '#8e97b5' }}>
+        جارٍ التحميل...
+      </div>
+    )
+  }
+
+  if (!insurance && !payment) {
+    return (
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: 40, textAlign: 'center', color: '#8e97b5' }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
+        <p style={{ fontWeight: 600, color: '#4a5580' }}>لا توجد بيانات مالية أو تأمينية مسجلة</p>
+      </div>
+    )
+  }
+
+  const coverage = insurance?.coverage || {}
+  const serviceLabels: Record<string, string> = {
+    consultation: 'كشف', chemo_drugs: 'أدوية الكيماوي', imaging: 'أشعة',
+    lab_tests: 'تحاليل', radiation: 'إشعاع علاجي', surgery: 'جراحة',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Insurance */}
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>🛡️</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>التغطية التأمينية</p>
+            <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: 0 }}>Insurance Coverage</p>
+          </div>
+        </div>
+        {!insurance ? (
+          <div style={{ padding: 30, textAlign: 'center', color: '#8e97b5', fontSize: 12 }}>لا توجد بيانات تأمين مسجلة</div>
+        ) : (
+          <div style={{ padding: '14px 18px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <InfoField label="نوع التأمين" value={INSURANCE_TYPE_AR[insurance.insurance_type] || insurance.insurance_type} />
+              {insurance.provider_name && <InfoField label="شركة التأمين" value={insurance.provider_name} />}
+              {insurance.policy_number && <InfoField label="رقم البوليصة" value={insurance.policy_number} mono />}
+            </div>
+
+            {Object.keys(coverage).length > 0 && (
+              <>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#8e97b5', fontFamily: 'DM Mono', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+                  تفاصيل التغطية
+                </p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: '#f7f8fc' }}>
+                      {['الخدمة', 'نسبة التغطية', 'المشاركة (ج.م)', 'تفويض مسبق', 'الحد السنوي'].map(h => (
+                        <th key={h} style={{ padding: '6px 8px', textAlign: 'right', fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', borderBottom: '1.5px solid #dde2ee' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(coverage).map(([key, val]: [string, any]) => (
+                      <tr key={key}>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #eef0f6', fontWeight: 600 }}>{serviceLabels[key] || key}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #eef0f6', fontFamily: 'DM Mono' }}>{val.pct}%</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #eef0f6', fontFamily: 'DM Mono' }}>{val.copay}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #eef0f6' }}>{val.preauth ? 'نعم' : 'لا'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #eef0f6', fontFamily: 'DM Mono' }}>{val.annual_max ?? 'غير محدود'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Payment */}
+      <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>💰</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>خطة السداد</p>
+            <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: 0 }}>Payment Plan</p>
+          </div>
+        </div>
+        {!payment ? (
+          <div style={{ padding: 30, textAlign: 'center', color: '#8e97b5', fontSize: 12 }}>لا توجد خطة سداد مسجلة</div>
+        ) : (
+          <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <InfoField label="طريقة السداد" value={PAYMENT_METHOD_AR[payment.payment_method] || payment.payment_method} />
+            {payment.initial_deposit != null && <InfoField label="الدفعة الأولى" value={`${payment.initial_deposit} ج.م`} mono />}
+            {payment.billing_cycle && <InfoField label="دورة الفوترة" value={payment.billing_cycle} />}
+            {payment.down_payment != null && <InfoField label="مقدم التقسيط" value={`${payment.down_payment} ج.م`} mono />}
+            {payment.num_installments != null && <InfoField label="عدد الأقساط" value={payment.num_installments} mono />}
+            {payment.ngo_name && <InfoField label="الجهة الخيرية" value={payment.ngo_name} />}
+            {payment.financial_notes && <InfoField label="ملاحظات مالية" value={payment.financial_notes} full />}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function InfoField({ label, value, mono, full }: { label: string; value: any; mono?: boolean; full?: boolean }) {
+  return (
+    <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
+      <p style={{ fontSize: 9, color: '#8e97b5', margin: '0 0 3px', fontFamily: 'DM Mono, monospace', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</p>
+      <p style={{ fontSize: 12, fontWeight: 600, color: '#1e2540', margin: 0, fontFamily: mono ? 'DM Mono, monospace' : undefined }}>{value ?? '—'}</p>
     </div>
   )
 }

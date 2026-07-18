@@ -3,42 +3,42 @@ import { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export interface SessionReport {
-  period:            string               // 'YYYY-MM'
-  totalSessions:     number
+  period: string               // 'YYYY-MM'
+  totalSessions: number
   completedSessions: number
   postponedSessions: number
   cancelledSessions: number
-  completionRate:    number               // %
+  completionRate: number               // %
   avgSessionsPerDay: number
-  uniquePatients:    number
+  uniquePatients: number
   protocolBreakdown: Record<string, number>
-  sessionsByDay:     Record<string, number>
+  sessionsByDay: Record<string, number>
 }
 
 export interface PatientProgressReport {
-  patientId:       string
-  patientName:     string
-  mrn:             string
-  protocol:        string
-  startDate:       string
-  plannedCycles:   number
+  patientId: string
+  patientName: string
+  mrn: string
+  protocol: string
+  startDate: string
+  plannedCycles: number
   completedCycles: number
-  progressPct:     number
+  progressPct: number
   lastSessionDate: string | null
   nextSessionDate: string | null
-  status:          string
+  status: string
   doseModifications: number
 }
 
 export interface LabTrendReport {
-  sessionId:    string
-  cycleNumber:  number
-  sessionDate:  string
-  wbc:          number | null
-  anc:          number | null
-  hgb:          number | null
-  plt:          number | null
-  labsCleared:  boolean | null
+  sessionId: string
+  cycleNumber: number
+  sessionDate: string
+  wbc: number | null
+  anc: number | null
+  hgb: number | null
+  plt: number | null
+  labsCleared: boolean | null
 }
 
 export function useReporting() {
@@ -48,8 +48,8 @@ export function useReporting() {
   // Monthly session summary
   const getMonthlyReport = useCallback(async (year: number, month: number): Promise<SessionReport> => {
     setLoading(true)
-    const from = `${year}-${String(month).padStart(2,'0')}-01`
-    const to   = new Date(year, month, 0).toISOString().split('T')[0]
+    const from = `${year}-${String(month).padStart(2, '0')}-01`
+    const to = new Date(year, month, 0).toISOString().split('T')[0]
 
     const { data: sessions } = await supabase
       .from('chemo_sessions')
@@ -57,12 +57,12 @@ export function useReporting() {
       .gte('session_date', from)
       .lte('session_date', to)
 
-    const all   = sessions || []
-    const done  = all.filter(s => s.status === 'completed')
-    const post  = all.filter(s => s.status === 'postponed')
-    const canc  = all.filter(s => s.status === 'cancelled')
-    const pts   = new Set(all.map(s => s.patient_id))
-    const days  = new Set(all.map(s => s.session_date))
+    const all = sessions || []
+    const done = all.filter(s => s.status === 'completed')
+    const post = all.filter(s => s.status === 'postponed')
+    const canc = all.filter(s => s.status === 'cancelled')
+    const pts = new Set(all.map(s => s.patient_id))
+    const days = new Set(all.map(s => s.session_date))
 
     const protocolBreakdown: Record<string, number> = {}
     all.forEach(s => {
@@ -77,14 +77,14 @@ export function useReporting() {
 
     setLoading(false)
     return {
-      period:            `${year}-${String(month).padStart(2,'0')}`,
-      totalSessions:     all.length,
+      period: `${year}-${String(month).padStart(2, '0')}`,
+      totalSessions: all.length,
       completedSessions: done.length,
       postponedSessions: post.length,
       cancelledSessions: canc.length,
-      completionRate:    all.length ? Math.round((done.length / all.length) * 100) : 0,
+      completionRate: all.length ? Math.round((done.length / all.length) * 100) : 0,
       avgSessionsPerDay: days.size ? Math.round((all.length / days.size) * 10) / 10 : 0,
-      uniquePatients:    pts.size,
+      uniquePatients: pts.size,
       protocolBreakdown,
       sessionsByDay,
     }
@@ -109,23 +109,23 @@ export function useReporting() {
     const reports = (plans || []).map(p => {
       const sessions = ((p as any).sessions || []) as any[]
       const completed = sessions.filter((s: any) => s.status === 'completed')
-      const upcoming  = sessions.filter((s: any) => s.status === 'scheduled')
+      const upcoming = sessions.filter((s: any) => s.status === 'scheduled')
         .sort((a: any, b: any) => a.session_date.localeCompare(b.session_date))
-      const lastDone  = completed.sort((a: any,b: any) => b.session_date.localeCompare(a.session_date))[0]
-      const pt        = (p as any).patient
+      const lastDone = completed.sort((a: any, b: any) => b.session_date.localeCompare(a.session_date))[0]
+      const pt = (p as any).patient
 
       return {
-        patientId:       p.patient_id,
-        patientName:     pt ? `${pt.first_name_ar} ${pt.last_name_ar}` : '—',
-        mrn:             pt?.mrn || '—',
-        protocol:        p.protocol_name,
-        startDate:       p.start_date,
-        plannedCycles:   p.planned_cycles,
+        patientId: p.patient_id,
+        patientName: pt ? `${pt.first_name_ar} ${pt.last_name_ar}` : '—',
+        mrn: pt?.mrn || '—',
+        protocol: p.protocol_name,
+        startDate: p.start_date,
+        plannedCycles: p.planned_cycles,
         completedCycles: p.completed_cycles,
-        progressPct:     Math.round((p.completed_cycles / p.planned_cycles) * 100),
+        progressPct: Math.round((p.completed_cycles / p.planned_cycles) * 100),
         lastSessionDate: lastDone?.session_date || null,
         nextSessionDate: upcoming[0]?.session_date || null,
-        status:          p.status,
+        status: p.status,
         doseModifications: sessions.filter((s: any) => s.dose_modified).length,
       }
     })
@@ -149,20 +149,20 @@ export function useReporting() {
     const { data } = await query
     setLoading(false)
     return (data || []).map(s => ({
-      sessionId:   s.id,
+      sessionId: s.id,
       cycleNumber: s.cycle_number,
       sessionDate: s.session_date,
-      wbc:         s.wbc_pre,
-      anc:         s.anc_pre,
-      hgb:         s.hgb_pre,
-      plt:         s.plt_pre,
+      wbc: s.wbc_pre,
+      anc: s.anc_pre,
+      hgb: s.hgb_pre,
+      plt: s.plt_pre,
       labsCleared: s.labs_cleared,
     }))
   }, [])
 
   // Upcoming pre-auth requests report
   const getPreauthReport = useCallback(async () => {
-    const in7d = new Date(Date.now() + 7*864e5).toISOString().split('T')[0]
+    const in7d = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
     const { data } = await supabase
       .from('chemo_sessions')
       .select(`
@@ -179,8 +179,8 @@ export function useReporting() {
 
   // Export CSV
   const exportCsv = useCallback(async (year: number, month: number): Promise<string> => {
-    const from = `${year}-${String(month).padStart(2,'0')}-01`
-    const to   = new Date(year, month, 0).toISOString().split('T')[0]
+    const from = `${year}-${String(month).padStart(2, '0')}-01`
+    const to = new Date(year, month, 0).toISOString().split('T')[0]
 
     const { data } = await supabase
       .from('chemo_sessions')
@@ -194,9 +194,9 @@ export function useReporting() {
       .lte('session_date', to)
       .order('session_date')
 
-    const headers = ['Date','Time','Patient','MRN','Protocol','Cycle','Status','WBC','ANC','Hgb','Platelets','Dose Modified','Dose Mod %']
+    const headers = ['Date', 'Time', 'Patient', 'MRN', 'Protocol', 'Cycle', 'Status', 'WBC', 'ANC', 'Hgb', 'Platelets', 'Dose Modified', 'Dose Mod %']
     const rows = (data || []).map(s => {
-      const pt   = (s as any).patient
+      const pt = (s as any).patient
       const plan = (s as any).plan
       return [
         s.session_date, s.session_time || '',
@@ -216,15 +216,3 @@ export function useReporting() {
 
   return { loading, getMonthlyReport, getPatientProgressReport, getLabTrends, getPreauthReport, exportCsv }
 }
-
-// ────────────────────────────────────────────────────────────
-// SERVER-SIDE FETCH (RSC)
-// app/(app)/chemo-sessions/actions.ts
-// Server Actions — called from server components
-// ────────────────────────────────────────────────────────────
-
-'use server'
-
-import { revalidatePath } from 'next/cache'
-
-// Fetch upcoming sessions server-side (for SSR / initial load)

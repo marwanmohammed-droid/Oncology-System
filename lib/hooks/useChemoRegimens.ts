@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export type SessionStatus = 'scheduled' | 'upcoming' | 'completed' | 'postponed' | 'cancelled' | 'ongoing'
+export type SessionStatus = 'scheduled' | 'completed' | 'postponed' | 'cancelled' | 'upcoming'
 export type PlanStatus = 'planned' | 'active' | 'on_hold' | 'completed' | 'discontinued' | 'cancelled'
 export type DrugRoute = 'IV' | 'PO' | 'SC' | 'IM' | 'IT' | 'topical' | 'inhalation'
 
@@ -96,7 +96,7 @@ export interface ChemoSession {
   dose_mod_reason: string | null
   dose_mod_ctcae: string | null
   // Pre-auth
-  preauth_status: string
+  preauth_status: 'pending' | 'approved' | 'rejected'
   preauth_ref: string | null
   preauth_date: string | null
   // Post

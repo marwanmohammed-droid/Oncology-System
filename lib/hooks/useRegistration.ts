@@ -14,7 +14,7 @@ export const schema = z.object({
   date_of_birth: z.string().min(1, 'تاريخ الميلاد مطلوب'),
   sex: z.enum(["M", "F"], { message: 'الجنس مطلوب' }),
 
-  nationality: z.string().min(1, 'الجنسية مطلوبة').default("Egyptian"),
+  nationality: z.string().min(1, 'الجنسية مطلوبة'),
   marital_status: z.string().optional().or(z.literal('')),
   occupation: z.string().optional().or(z.literal('')),
 
@@ -29,7 +29,7 @@ export const schema = z.object({
   emergency_relation: z.string().optional().or(z.literal('')),
   emergency_phone: z.string().min(11, 'رقم الطوارئ غير صحيح'),
 
-  referral_source: z.string().optional().or(z.literal('')).default("physician"),
+  referral_source: z.string().optional().or(z.literal('')),
   referring_provider: z.string().optional().or(z.literal('')),
 
   // تاريخ أول زيارة بقى إلزامي لأن سنة رقم الملف (MRN) مبنية عليه

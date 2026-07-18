@@ -69,7 +69,13 @@ export default function NewPatientPage() {
         ))}
       </div>
 
-      {step === 1 && <Step1Personal onSave={saveStep1} saving={saving} error={error} />}
+      {step === 1 && (
+        <Step1Personal
+          onSave={async (data) => { await saveStep1(data) }}
+          saving={saving}
+          error={error}
+        />
+      )}
       {step === 2 && <Step2Medical onSave={saveStep2} saving={saving} error={error} />}
       {step === 3 && <Step3Insurance onSave={saveStep3} saving={saving} error={error} />}
       {step === 4 && patientId && (
