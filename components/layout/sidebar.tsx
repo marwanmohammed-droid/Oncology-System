@@ -29,6 +29,7 @@ const NAV: NavGroup[] = [
       { href: '/chemo-sessions', icon: '💊', labelAr: 'جلسات الكيماوي', labelEn: 'Chemo Sessions' },
       { href: '/protocols', icon: '🧬', labelAr: 'البروتوكولات', labelEn: 'Protocols' },
       { href: '/reports', icon: '📊', labelAr: 'التقارير', labelEn: 'Reports' },
+      { href: '/imaging', icon: '📷', labelAr: 'الأشعة والتصوير', labelEn: 'Imaging', doctorOnly: true },
     ]
   },
   {

@@ -5,7 +5,7 @@ export type UserRole = 'admin' | 'doctor' | 'receptionist' | 'nurse' | 'pharmaci
 
 const ROLE_ROUTES: Record<UserRole, string[]> = {
   admin: ['*'],
-  doctor: ['/dashboard', '/patients', '/chemo-sessions', '/protocols', '/clinical-trials', '/lab-results', '/appointments', '/billing', '/insurance', '/inventory', '/treatment-plans', '/medical-report', '/reports'],
+  doctor: ['/dashboard', '/patients', '/chemo-sessions', '/protocols', '/clinical-trials', '/lab-results', '/imaging', '/appointments', '/billing', '/insurance', '/inventory', '/treatment-plans', '/medical-report', '/reports'],
   nurse: ['/dashboard', '/patients', '/chemo-sessions', '/appointments', '/inventory', '/medical-report'],
   receptionist: ['/dashboard', '/patients', '/appointments'],
   pharmacist: ['/dashboard', '/patients', '/chemo-sessions', '/protocols', '/inventory'],
