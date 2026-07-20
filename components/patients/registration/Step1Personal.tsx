@@ -194,7 +194,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
       <div className="card">
         <div className="card-header">
           <span className="card-icon navy">🪪</span>
-          <div><p className="card-title">وثائق الهوية</p><p className="card-subtitle">Identification Documents</p></div>
+          <div><p className="card-title">وثائق الهوية</p><p className="card-subtitle">Identification Documents (اختياري)</p></div>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-2 gap-3">
@@ -256,10 +256,10 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             </div>
           </div>
 
-          <p className="section-label">Emergency Contact / جهة الاتصال في الطوارئ</p>
+          <p className="section-label">Emergency Contact / جهة الاتصال في الطوارئ (اختياري)</p>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="field-label">الاسم <span className="req">*</span><span className="el">Name</span></label>
+              <label className="field-label">الاسم<span className="el">Name</span></label>
               <input {...register('emergency_name')} placeholder="اسم قريب المريض" className="input-ar" />
               {errors.emergency_name && <p className="field-error">{errors.emergency_name.message}</p>}
             </div>
@@ -274,7 +274,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
               </select>
             </div>
             <div>
-              <label className="field-label">رقم الهاتف <span className="req">*</span><span className="el">Phone</span></label>
+              <label className="field-label">رقم الهاتف<span className="el">Phone</span></label>
               <input {...register('emergency_phone')} placeholder="+20 1XX XXX XXXX" className="input-en" />
               {errors.emergency_phone && <p className="field-error">{errors.emergency_phone.message}</p>}
             </div>
@@ -286,7 +286,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
       <div className="card">
         <div className="card-header">
           <span className="card-icon amber">🔗</span>
-          <div><p className="card-title">مصدر الإحالة</p><p className="card-subtitle">Referral Source</p></div>
+          <div><p className="card-title">مصدر الإحالة</p><p className="card-subtitle">Referral Source (اختياري)</p></div>
         </div>
         <div className="card-body">
           <div className="flex gap-2 flex-wrap mb-3">
@@ -308,7 +308,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
       </div>
 
       <div className="flex justify-between items-center pt-2">
-        <p className="text-xs text-slate-400 font-mono">* Required fields · الحقول الإلزامية</p>
+        <p className="text-xs text-slate-400 font-mono">* الحقول الأساسية فقط إلزامية · Only essential fields required</p>
         <button type="submit" disabled={saving} className="btn-primary">
           {saving ? 'جارٍ الحفظ...' : 'حفظ والمتابعة للبيانات الطبية'}
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
