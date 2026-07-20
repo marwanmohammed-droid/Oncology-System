@@ -72,7 +72,7 @@ export default function DashboardPage() {
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: '#fff', margin: 0 }}>لوحة التحكم</h1>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', fontFamily: 'DM Mono, monospace', margin: '4px 0 0' }}>
-              مركز الأمل للأورام · {new Date().toLocaleDateString('ar-EG')}
+              مركز كابيتال مصر للأورام · {new Date().toLocaleDateString('ar-EG')}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>

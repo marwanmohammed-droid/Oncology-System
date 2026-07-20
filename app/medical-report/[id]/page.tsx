@@ -60,7 +60,7 @@ export default function MedicalReportPage() {
                 {/* رأس التقرير */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #1a8a78', paddingBottom: 16, marginBottom: 24 }}>
                     <div>
-                        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>مركز الأمل للأورام</h1>
+                        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>مركز كابيتال مصر للأورام</h1>
                         <p style={{ fontSize: 11, color: '#8e97b5', fontFamily: 'DM Mono, monospace', margin: '4px 0 0' }}>
                             Oncology Center · Medical Report
                         </p>

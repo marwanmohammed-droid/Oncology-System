@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "مركز الأمل للأورام",
+  title: "مركز كابيتال مصر للأورام",
   description: "Oncology Center Management System",
 };
 
