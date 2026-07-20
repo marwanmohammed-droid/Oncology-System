@@ -14,7 +14,7 @@ export const schema = z.object({
   date_of_birth: z.string().min(1, 'تاريخ الميلاد مطلوب'),
   sex: z.enum(["M", "F"], { message: 'الجنس مطلوب' }),
 
-  nationality: z.string().min(1, 'الجنسية مطلوبة'),
+  nationality: z.string().optional().or(z.literal('')),
   marital_status: z.string().optional().or(z.literal('')),
   occupation: z.string().optional().or(z.literal('')),
 
@@ -25,17 +25,17 @@ export const schema = z.object({
   district: z.string().optional().or(z.literal('')),
   postal_code: z.string().optional().or(z.literal('')),
 
-  emergency_name: z.string().min(2, 'اسم جهة الطوارئ مطلوب'),
+  emergency_name: z.string().optional().or(z.literal('')),
   emergency_relation: z.string().optional().or(z.literal('')),
-  emergency_phone: z.string().min(11, 'رقم الطوارئ غير صحيح'),
+  emergency_phone: z.string().optional().or(z.literal('')),
 
   referral_source: z.string().optional().or(z.literal('')),
   referring_provider: z.string().optional().or(z.literal('')),
 
-  // تاريخ أول زيارة بقى إلزامي لأن سنة رقم الملف (MRN) مبنية عليه
+  // تاريخ أول زيارة لازم يفضل إلزامي لأن سنة رقم الملف (MRN) مبنية عليه
   first_visit_date: z.string().min(1, 'تاريخ أول زيارة مطلوب — أساس رقم الملف'),
 
-  // الرقم التسلسلي اللي بيدخله الموظف يدويًا بعد السنة (مثال: 0001)
+  // الرقم التسلسلي لازم يفضل إلزامي لنفس السبب
   mrn_sequence: z.string()
     .min(1, 'رقم الملف مطلوب')
     .regex(/^\d{1,6}$/, 'أرقام فقط (حتى 6 أرقام)'),
@@ -89,17 +89,17 @@ export function useRegistration() {
           last_name_en: data.last_name_en.toLowerCase(),
           date_of_birth: data.date_of_birth,
           sex: data.sex,
-          nationality: data.nationality || 'Egyptian',
+          nationality: data.nationality || null,
           marital_status: data.marital_status || null,
           occupation: data.occupation || null,
           mobile_primary: data.mobile_primary,
           email: data.email || null,
           governorate: data.governorate || null,
           district: data.district || null,
-          emergency_name: data.emergency_name,
+          emergency_name: data.emergency_name || null,
           emergency_relation: data.emergency_relation || null,
-          emergency_phone: data.emergency_phone,
-          referral_source: data.referral_source || 'physician',
+          emergency_phone: data.emergency_phone || null,
+          referral_source: data.referral_source || null,
           referring_provider: data.referring_provider || null,
         })
         .select('id,mrn')
