@@ -232,6 +232,21 @@ export function useRegistration() {
           ecog_ps: hist.ecog_ps || null,
         }, { onConflict: 'patient_id' })
 
+      // حفظ أول قراءة للعلامات الحيوية (لو المستخدم دخل أي قيمة منها)
+      const vitals = hist.vitals
+      if (vitals && Object.values(vitals).some((v: any) => v)) {
+        await supabase.from('vital_signs').insert({
+          patient_id: patientId,
+          temperature_c: vitals.temperature_c ? parseFloat(vitals.temperature_c) : null,
+          bp_systolic: vitals.bp_systolic ? parseInt(vitals.bp_systolic) : null,
+          bp_diastolic: vitals.bp_diastolic ? parseInt(vitals.bp_diastolic) : null,
+          pulse_bpm: vitals.pulse_bpm ? parseInt(vitals.pulse_bpm) : null,
+          respiratory_rate: vitals.respiratory_rate ? parseInt(vitals.respiratory_rate) : null,
+          spo2_pct: vitals.spo2_pct ? parseInt(vitals.spo2_pct) : null,
+          pain_score: vitals.pain_score ? parseInt(vitals.pain_score) : null,
+        })
+      }
+
       setStep(3)
     } catch (e: any) {
       setError(e.message)

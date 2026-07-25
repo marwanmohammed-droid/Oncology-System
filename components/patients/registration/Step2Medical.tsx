@@ -37,6 +37,16 @@ const schema = z.object({
     oncology_fh: z.enum(['yes', 'no']).optional(),
     oncology_fh_person: z.string().optional().or(z.literal('')),
     oncology_fh_type: z.string().optional().or(z.literal('')),
+    // أضف جوه schema.history في Step2Medical.tsx
+    vitals: z.object({
+      temperature_c: z.string().optional().or(z.literal('')),
+      bp_systolic: z.string().optional().or(z.literal('')),
+      bp_diastolic: z.string().optional().or(z.literal('')),
+      pulse_bpm: z.string().optional().or(z.literal('')),
+      respiratory_rate: z.string().optional().or(z.literal('')),
+      spo2_pct: z.string().optional().or(z.literal('')),
+      pain_score: z.string().optional().or(z.literal('')),
+    }).optional(),
   }),
 })
 
@@ -394,6 +404,47 @@ export function Step2Medical({ onSave, saving, error }: Props) {
         </div>
       </div>
 
+      {/* ── VITAL SIGNS ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon red">❤️</span>
+          <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-4 gap-3 mb-3">
+            <div>
+              <label className="field-label-en">Temperature (°C)</label>
+              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Systolic</label>
+              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Diastolic</label>
+              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">Pulse (bpm)</label>
+              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="field-label-en">Respiratory Rate</label>
+              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">SpO2 (%)</label>
+              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">Pain Score (0-10)</label>
+              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
+            </div>
+          </div>
+        </div>
+      </div>
       {/* ── MEDICAL HISTORY ── */}
       <div className="card">
         <div className="card-header">
