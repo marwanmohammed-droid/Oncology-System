@@ -10,7 +10,7 @@ type Props = {
 }
 
 export function Step1Personal({ onSave, saving, error }: Props) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<Step1Data>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Step1Data>({
     resolver: zodResolver(schema),
     defaultValues: {
       first_name_ar: '',
@@ -33,6 +33,27 @@ export function Step1Personal({ onSave, saving, error }: Props) {
   const mrnYear = firstVisitDate ? new Date(firstVisitDate).getFullYear() : new Date().getFullYear()
   const mrnPreview = `${mrnYear}-${(mrnSequence || '').padStart(4, '0')}`
 
+  const maritalStatus = watch('marital_status')
+  const referralSource = watch('referral_source')
+  const weight = watch('weight_kg')
+  const height = watch('height_cm')
+
+  const referralNameLabel =
+    referralSource === 'physician' ? 'اسم الطبيب المحوّل' :
+      referralSource === 'social_worker' ? 'اسم الأخصائي الاجتماعي' :
+        referralSource === 'other_patient' ? 'اسم المريض' : 'الاسم'
+
+  function handleAnthro(w: string, h: string) {
+    const wNum = parseFloat(w)
+    const hNum = parseFloat(h)
+    if (wNum && hNum) {
+      const bsaVal = Math.sqrt((wNum * hNum) / 3600)
+      const bmiVal = wNum / Math.pow(hNum / 100, 2)
+      setValue('bsa', bsaVal.toFixed(2))
+      setValue('bmi', bmiVal.toFixed(1))
+    }
+  }
+
   const onSubmit = (data: Step1Data) => onSave(data)
 
   return (
@@ -53,7 +74,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
         <div className="card-body">
           <p className="section-label">الاسم الكامل / Full Name</p>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            {/* Arabic */}
             <div className="space-y-3">
               <div>
                 <label className="field-label">
@@ -72,7 +92,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
                 {errors.last_name_ar && <p className="field-error">{errors.last_name_ar.message}</p>}
               </div>
             </div>
-            {/* English */}
             <div className="space-y-3">
               <div>
                 <label className="field-label">
@@ -93,7 +112,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             </div>
           </div>
 
-          {/* Demographics */}
           <p className="section-label">Demographics</p>
           <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
@@ -119,7 +137,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="field-label">الحالة الاجتماعية<span className="el">Marital status</span></label>
               <select {...register('marital_status')} className="input-select">
@@ -130,9 +148,53 @@ export function Step1Personal({ onSave, saving, error }: Props) {
                 <option value="widowed">أرمل · Widowed</option>
               </select>
             </div>
+            {maritalStatus === 'married' && (
+              <div>
+                <label className="field-label">عدد الأطفال<span className="el">No. of children</span></label>
+                <input type="number" min="0" {...register('num_children')} placeholder="0" className="input-en" />
+              </div>
+            )}
             <div>
               <label className="field-label">المهنة<span className="el">Occupation</span></label>
               <input {...register('occupation')} placeholder="e.g. Teacher, Engineer" className="input-en" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── ANTHROPOMETRICS ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon teal">📏</span>
+          <div><p className="card-title">القياسات الجسدية والتغذية</p><p className="card-subtitle">Anthropometrics &amp; Nutrition</p></div>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div>
+              <label className="field-label">الوزن (kg)<span className="el">Weight</span></label>
+              <input type="number" step="0.1" {...register('weight_kg')}
+                onBlur={() => handleAnthro(weight || '', height || '')}
+                placeholder="70.0" className="input-en" />
+            </div>
+            <div>
+              <label className="field-label">الطول (cm)<span className="el">Height</span></label>
+              <input type="number" step="0.5" {...register('height_cm')}
+                onBlur={() => handleAnthro(weight || '', height || '')}
+                placeholder="170" className="input-en" />
+            </div>
+            <div>
+              <label className="field-label">BSA (m²) — تلقائي</label>
+              <input {...register('bsa')} readOnly className="input-en bg-teal-50 text-teal-700 font-bold" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="field-label">BMI — تلقائي</label>
+              <input {...register('bmi')} readOnly className="input-en bg-teal-50 text-teal-700 font-bold" />
+            </div>
+            <div>
+              <label className="field-label">Nutri Score</label>
+              <input type="number" step="0.1" {...register('nutri_score')} placeholder="e.g. 3" className="input-en" />
             </div>
           </div>
         </div>
@@ -146,46 +208,26 @@ export function Step1Personal({ onSave, saving, error }: Props) {
         </div>
         <div className="card-body">
           <p className="hint" style={{ marginBottom: 10 }}>
-            السنة تُحسب تلقائيًا من تاريخ أول زيارة (أسفل)، وانت بتحدد الرقم التسلسلي بعدها يدويًا.
+            السنة تُحسب تلقائيًا من تاريخ أول زيارة، وانت بتحدد الرقم التسلسلي بعدها يدويًا.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="field-label">
-                تاريخ أول زيارة <span className="req">*</span><span className="el">First visit date</span>
-              </label>
+              <label className="field-label">تاريخ أول زيارة <span className="req">*</span><span className="el">First visit date</span></label>
               <input type="date" {...register('first_visit_date')} className="input-en" />
               {errors.first_visit_date && <p className="field-error">{errors.first_visit_date.message}</p>}
             </div>
             <div>
-              <label className="field-label">
-                الرقم التسلسلي <span className="req">*</span><span className="el">Sequence number</span>
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{
-                  fontFamily: 'DM Mono, monospace', fontSize: 13, fontWeight: 700,
-                  color: '#8e97b5', whiteSpace: 'nowrap',
-                }}>
-                  {mrnYear}-
-                </span>
-                <input
-                  {...register('mrn_sequence')}
-                  placeholder="0001"
-                  maxLength={6}
-                  className="input-id"
-                  style={{ flex: 1 }}
-                />
+              <label className="field-label">الرقم التسلسلي <span className="req">*</span><span className="el">Sequence number</span></label>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-bold text-slate-400 whitespace-nowrap">{mrnYear}-</span>
+                <input {...register('mrn_sequence')} placeholder="0001" maxLength={6} className="input-id flex-1" />
               </div>
               {errors.mrn_sequence && <p className="field-error">{errors.mrn_sequence.message}</p>}
             </div>
           </div>
-          <div className="id-card" style={{ marginTop: 12 }}>
+          <div className="id-card mt-3">
             <p className="id-label">المعاينة <span className="id-tag">MRN</span></p>
-            <p style={{
-              fontFamily: 'DM Mono, monospace', fontSize: 18, fontWeight: 700,
-              color: '#1a8a78', margin: 0,
-            }}>
-              {mrnPreview}
-            </p>
+            <p className="font-mono text-lg font-bold text-teal-600 m-0">{mrnPreview}</p>
           </div>
         </div>
       </div>
@@ -261,7 +303,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             <div>
               <label className="field-label">الاسم<span className="el">Name</span></label>
               <input {...register('emergency_name')} placeholder="اسم قريب المريض" className="input-ar" />
-              {errors.emergency_name && <p className="field-error">{errors.emergency_name.message}</p>}
             </div>
             <div>
               <label className="field-label">صلة القرابة<span className="el">Relationship</span></label>
@@ -276,7 +317,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             <div>
               <label className="field-label">رقم الهاتف<span className="el">Phone</span></label>
               <input {...register('emergency_phone')} placeholder="+20 1XX XXX XXXX" className="input-en" />
-              {errors.emergency_phone && <p className="field-error">{errors.emergency_phone.message}</p>}
             </div>
           </div>
         </div>
@@ -290,25 +330,29 @@ export function Step1Personal({ onSave, saving, error }: Props) {
         </div>
         <div className="card-body">
           <div className="flex gap-2 flex-wrap mb-3">
-            {['physician', 'hospital', 'self', 'trial'].map(src => (
-              <label key={src} className="radio-opt">
-                <input type="radio" value={src} {...register('referral_source')} />
+            {[
+              { v: 'physician', l: 'طبيب · Physician' },
+              { v: 'social_worker', l: 'أخصائي اجتماعي · Social worker' },
+              { v: 'other_patient', l: 'مريض آخر · Other patient' },
+            ].map(({ v, l }) => (
+              <label key={v} className="radio-opt">
+                <input type="radio" value={v} {...register('referral_source')} />
                 <span className="rdot" />
-                {{ physician: 'طبيب محول · Physician', hospital: 'إحالة مستشفى · Hospital', self: 'ذاتي · Self', trial: 'دراسة سريرية · Trial' }[src as 'physician' | 'hospital' | 'self' | 'trial']}
+                {l}
               </label>
             ))}
           </div>
-          <div className="grid grid-cols-1 gap-3">
+          {referralSource && (
             <div>
-              <label className="field-label">اسم الطبيب / الجهة المحيلة<span className="el">Referring provider</span></label>
-              <input {...register('referring_provider')} placeholder="Dr. / Hospital name" className="input-en" />
+              <label className="field-label">{referralNameLabel}</label>
+              <input {...register('referring_person_name')} placeholder={referralNameLabel} className="input-en" />
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       <div className="flex justify-between items-center pt-2">
-        <p className="text-xs text-slate-400 font-mono">* الحقول الأساسية فقط إلزامية · Only essential fields required</p>
+        <p className="text-xs text-slate-400 font-mono">* الحقول الأساسية فقط إلزامية</p>
         <button type="submit" disabled={saving} className="btn-primary">
           {saving ? 'جارٍ الحفظ...' : 'حفظ والمتابعة للبيانات الطبية'}
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>

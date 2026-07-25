@@ -15,6 +15,7 @@ type Patient = {
   sex: string
   created_at: string
   archived_at: string | null
+  diagnoses?: { double_primary: boolean; is_metastatic: boolean }[]
 }
 
 export default function PatientsPage() {
@@ -28,9 +29,9 @@ export default function PatientsPage() {
     async function load() {
       const { data } = await supabase
         .from('patients')
-        .select('id, mrn, first_name_ar, last_name_ar, first_name_en, last_name_en, mobile_primary, date_of_birth, sex, created_at, archived_at')
+        .select('id, mrn, first_name_ar, last_name_ar, first_name_en, last_name_en, mobile_primary, date_of_birth, sex, created_at, archived_at, diagnoses(double_primary, is_metastatic)')
         .order('created_at', { ascending: false })
-      setPatients(data || [])
+      setPatients((data as any) || [])
       setLoading(false)
     }
     load()
@@ -49,6 +50,14 @@ export default function PatientsPage() {
   const age = (dob: string) => {
     const diff = Date.now() - new Date(dob).getTime()
     return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25))
+  }
+
+  function getFlags(p: Patient) {
+    const diag = p.diagnoses?.[0]
+    return {
+      doublePrimary: !!diag?.double_primary,
+      metastatic: !!diag?.is_metastatic,
+    }
   }
 
   return (
@@ -137,39 +146,56 @@ export default function PatientsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p, i) => (
-                <tr key={p.id} style={{ borderBottom: '1px solid #eef0f6', background: i % 2 === 0 ? '#fff' : '#fafbfd' }}>
-                  <td style={{ padding: '12px 14px', fontFamily: 'DM Mono', fontSize: 11, color: '#2ab8a0', fontWeight: 600 }}>
-                    {p.mrn}
-                  </td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <p style={{ margin: 0, fontWeight: 700, color: '#0b1f3a' }}>
-                      {p.first_name_ar} {p.last_name_ar}
-                    </p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: '#8e97b5', fontFamily: 'DM Mono' }}>
-                      {p.first_name_en} {p.last_name_en}
-                    </p>
-                  </td>
-                  <td style={{ padding: '12px 14px', color: '#4a5580' }}>
-                    {age(p.date_of_birth)} سنة · {p.sex === 'M' ? 'ذكر' : 'أنثى'}
-                  </td>
-                  <td style={{ padding: '12px 14px', fontFamily: 'DM Mono', fontSize: 11, color: '#4a5580' }}>
-                    {p.mobile_primary}
-                  </td>
-                  <td style={{ padding: '12px 14px', fontFamily: 'DM Mono', fontSize: 10, color: '#8e97b5' }}>
-                    {new Date(p.created_at).toLocaleDateString('ar-EG')}
-                  </td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <Link href={`/patients/${p.id}`} style={{
-                      padding: '5px 12px', borderRadius: 6,
-                      border: '1.5px solid #dde2ee', color: '#4a5580',
-                      textDecoration: 'none', fontSize: 11, fontWeight: 600,
-                    }}>
-                      عرض الملف
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((p, i) => {
+                const flags = getFlags(p)
+                return (
+                  <tr key={p.id} style={{ borderBottom: '1px solid #eef0f6', background: i % 2 === 0 ? '#fff' : '#fafbfd' }}>
+                    <td style={{ padding: '12px 14px', fontFamily: 'DM Mono', fontSize: 11, color: '#2ab8a0', fontWeight: 600 }}>
+                      {p.mrn}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 700, color: '#0b1f3a' }}>
+                            {p.first_name_ar} {p.last_name_ar}
+                          </p>
+                          <p style={{ margin: '2px 0 0', fontSize: 10, color: '#8e97b5', fontFamily: 'DM Mono' }}>
+                            {p.first_name_en} {p.last_name_en}
+                          </p>
+                        </div>
+                        {flags.doublePrimary && (
+                          <span title="Double Primary" style={{ fontSize: 8, padding: '2px 6px', borderRadius: 20, background: '#faf5ff', color: '#9333ea', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            2× Primary
+                          </span>
+                        )}
+                        {flags.metastatic && (
+                          <span title="Metastatic" style={{ fontSize: 8, padding: '2px 6px', borderRadius: 20, background: '#fde8e8', color: '#e53e3e', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            Metastatic
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 14px', color: '#4a5580' }}>
+                      {age(p.date_of_birth)} سنة · {p.sex === 'M' ? 'ذكر' : 'أنثى'}
+                    </td>
+                    <td style={{ padding: '12px 14px', fontFamily: 'DM Mono', fontSize: 11, color: '#4a5580' }}>
+                      {p.mobile_primary}
+                    </td>
+                    <td style={{ padding: '12px 14px', fontFamily: 'DM Mono', fontSize: 10, color: '#8e97b5' }}>
+                      {new Date(p.created_at).toLocaleDateString('ar-EG')}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <Link href={`/patients/${p.id}`} style={{
+                        padding: '5px 12px', borderRadius: 6,
+                        border: '1.5px solid #dde2ee', color: '#4a5580',
+                        textDecoration: 'none', fontSize: 11, fontWeight: 600,
+                      }}>
+                        عرض الملف
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

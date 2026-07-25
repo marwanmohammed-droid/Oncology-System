@@ -5,6 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useMedicalRecord } from '@/lib/hooks/useMedicalRecord'
 
+function bmiCategory(bmi: number | null): { label: string; color: string } | null {
+  if (bmi === null) return null
+  if (bmi < 18.5) return { label: 'نقص وزن · Underweight', color: '#b45309' }
+  if (bmi < 25) return { label: 'طبيعي · Normal', color: '#16a34a' }
+  if (bmi < 30) return { label: 'زيادة وزن · Overweight', color: '#b45309' }
+  return { label: 'سمنة · Obese', color: '#e53e3e' }
+}
+
 export default function PatientProfilePage() {
   const { id } = useParams()
   const router = useRouter()
@@ -12,6 +20,7 @@ export default function PatientProfilePage() {
 
   const [patient, setPatient] = useState<any>(null)
   const [diagnosis, setDiagnosis] = useState<any>(null)
+  const [medicalHistory, setMedicalHistory] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -31,8 +40,15 @@ export default function PatientProfilePage() {
         .limit(1)
         .single()
 
+      const { data: hist } = await supabase
+        .from('medical_history')
+        .select('*')
+        .eq('patient_id', id)
+        .maybeSingle()
+
       setPatient(pt)
       setDiagnosis(diag)
+      setMedicalHistory(hist)
       setLoading(false)
     }
     load()
@@ -51,6 +67,7 @@ export default function PatientProfilePage() {
   )
 
   const age = Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+  const bmiCat = bmiCategory(medicalHistory?.bmi ?? null)
 
   const tabs = [
     { id: 'overview', label: '⊞ نظرة عامة' },
@@ -87,9 +104,21 @@ export default function PatientProfilePage() {
           </div>
 
           <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>
-              {patient.first_name_ar} {patient.last_name_ar}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>
+                {patient.first_name_ar} {patient.last_name_ar}
+              </h1>
+              {diagnosis?.double_primary && (
+                <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 20, background: 'rgba(147,51,234,.2)', color: '#c084fc', fontWeight: 700 }}>
+                  2× Primary
+                </span>
+              )}
+              {diagnosis?.is_metastatic && (
+                <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 20, background: 'rgba(229,62,62,.2)', color: '#f87171', fontWeight: 700 }}>
+                  Metastatic
+                </span>
+              )}
+            </div>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', fontFamily: 'DM Mono', margin: '4px 0 8px' }}>
               {patient.first_name_en} {patient.last_name_en} · {age} سنة · {patient.sex === 'M' ? 'ذكر' : 'أنثى'}
             </p>
@@ -144,6 +173,25 @@ export default function PatientProfilePage() {
       {/* Content */}
       <div style={{ padding: '24px 28px' }}>
 
+        {/* Oncology FH Alert — يظهر فوق كل التبويبات لو موجود */}
+        {medicalHistory?.oncology_fh && (
+          <div style={{
+            background: '#fff3cd', border: '1px solid rgba(180,83,9,.3)', borderRadius: 10,
+            padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ fontSize: 18 }}>🧬</span>
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#b45309', margin: 0 }}>
+                تاريخ عائلي للأورام (Oncology Family History)
+              </p>
+              <p style={{ fontSize: 11, color: '#b45309', margin: '2px 0 0' }}>
+                {medicalHistory.oncology_fh_person ? `القريب: ${medicalHistory.oncology_fh_person}` : ''}
+                {medicalHistory.oncology_fh_type ? ` · النوع: ${medicalHistory.oncology_fh_type}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -162,12 +210,13 @@ export default function PatientProfilePage() {
                   ['MRN', patient.mrn],
                   ['تاريخ الميلاد', patient.date_of_birth],
                   ['الجنس', patient.sex === 'M' ? 'ذكر · Male' : 'أنثى · Female'],
-                  ['الجنسية', patient.nationality],
+                  ['الجنسية', patient.nationality || '—'],
+                  ['الحالة الاجتماعية', patient.marital_status || '—'],
+                  patient.num_children != null ? ['عدد الأطفال', patient.num_children] : null,
                   ['الموبايل', patient.mobile_primary],
                   ['البريد الإلكتروني', patient.email || '—'],
                   ['المحافظة', patient.governorate || '—'],
-                  ['جهة الطوارئ', patient.emergency_name + ' · ' + (patient.emergency_relation || '')],
-                ].map(([k, v]) => (
+                ].filter(Boolean).map(([k, v]: any) => (
                   <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eef0f6' }}>
                     <span style={{ fontSize: 10, color: '#8e97b5', fontFamily: 'DM Mono' }}>{k}</span>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#1e2540' }}>{v}</span>
@@ -188,13 +237,15 @@ export default function PatientProfilePage() {
               <div style={{ padding: '14px 18px' }}>
                 {diagnosis ? [
                   ['Primary site', diagnosis.primary_site],
+                  diagnosis.double_primary ? ['Primary site 2', diagnosis.primary_site_2] : null,
                   ['ICD-10', diagnosis.icd10_code],
                   ['Histology', diagnosis.histology],
                   ['Stage', diagnosis.stage || '—'],
                   ['TNM', `${diagnosis.tnm_t || '—'} ${diagnosis.tnm_n || '—'} ${diagnosis.tnm_m || '—'}`],
                   ['Intent', diagnosis.treatment_intent || '—'],
+                  diagnosis.is_metastatic ? ['Metastatic sites', diagnosis.metastatic_sites || '—'] : null,
                   ['تاريخ التشخيص', diagnosis.date_of_diagnosis],
-                ].map(([k, v]) => (
+                ].filter(Boolean).map(([k, v]: any) => (
                   <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eef0f6' }}>
                     <span style={{ fontSize: 10, color: '#8e97b5', fontFamily: 'DM Mono' }}>{k}</span>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#1e2540' }}>{v}</span>
@@ -206,6 +257,44 @@ export default function PatientProfilePage() {
                 )}
               </div>
             </div>
+
+            {/* Anthropometrics */}
+            {medicalHistory && (medicalHistory.weight_kg || medicalHistory.bmi) && (
+              <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden', gridColumn: '1 / -1' }}>
+                <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>📏</span>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>القياسات الجسدية والتغذية</p>
+                    <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: 0 }}>Anthropometrics &amp; Nutrition</p>
+                  </div>
+                </div>
+                <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+                  <div>
+                    <p style={{ fontSize: 9, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>الوزن</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#1e2540', margin: '2px 0 0', fontFamily: 'DM Mono' }}>{medicalHistory.weight_kg ?? '—'} kg</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 9, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>الطول</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#1e2540', margin: '2px 0 0', fontFamily: 'DM Mono' }}>{medicalHistory.height_cm ?? '—'} cm</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 9, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>BSA</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#1a8a78', margin: '2px 0 0', fontFamily: 'DM Mono' }}>{medicalHistory.bsa ?? '—'} m²</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 9, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>BMI</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: bmiCat?.color || '#1e2540', margin: '2px 0 0', fontFamily: 'DM Mono' }}>
+                      {medicalHistory.bmi ?? '—'}
+                    </p>
+                    {bmiCat && <p style={{ fontSize: 9, color: bmiCat.color, margin: '2px 0 0' }}>{bmiCat.label}</p>}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 9, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>Nutri Score</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#1e2540', margin: '2px 0 0', fontFamily: 'DM Mono' }}>{medicalHistory.nutri_score ?? '—'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         )}
@@ -231,10 +320,26 @@ export default function PatientProfilePage() {
 }
 
 // ────────────────────────────────────────────────────────────
-// MedicalTabContent — محتوى تبويب "السجل الطبي"
+// MedicalTabContent
 // ────────────────────────────────────────────────────────────
 function MedicalTabContent({ patientId }: { patientId: string }) {
   const { data, loading } = useMedicalRecord(patientId)
+  const [pathologyTests, setPathologyTests] = useState<any[]>([])
+  const [pathLoading, setPathLoading] = useState(true)
+  const supabase = createClient()
+
+  useEffect(() => {
+    async function loadTests() {
+      const { data } = await supabase
+        .from('pathology_tests')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('test_date', { ascending: false })
+      setPathologyTests(data || [])
+      setPathLoading(false)
+    }
+    loadTests()
+  }, [patientId])
 
   if (loading) {
     return (
@@ -247,6 +352,8 @@ function MedicalTabContent({ patientId }: { patientId: string }) {
 
   const { diagnoses, treatmentPlans, chemoSessions } = data
   const completedSessions = chemoSessions.filter((s: any) => s.status === 'completed')
+  const ihcTests = pathologyTests.filter(t => t.category === 'ihc')
+  const molecularTests = pathologyTests.filter(t => t.category === 'molecular')
 
   const reportLinkStyle: React.CSSProperties = {
     background: '#2ab8a0',
@@ -313,12 +420,51 @@ function MedicalTabContent({ patientId }: { patientId: string }) {
           </div>
         </div>
       )}
+
+      {/* Pathology tests: IHC + Molecular */}
+      {!pathLoading && pathologyTests.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <PathologyTable title="IHC" subtitle="Immunohistochemistry" tests={ihcTests} />
+          <PathologyTable title="Molecular Testing" subtitle="اختبارات جزيئية" tests={molecularTests} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PathologyTable({ title, subtitle, tests }: { title: string; subtitle: string; tests: any[] }) {
+  return (
+    <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6' }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>{title}</p>
+        <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: '2px 0 0' }}>{subtitle}</p>
+      </div>
+      {tests.length === 0 ? (
+        <p style={{ padding: 20, textAlign: 'center', color: '#8e97b5', fontSize: 11 }}>لا توجد نتائج</p>
+      ) : (
+        <div style={{ padding: '10px 18px' }}>
+          {tests.map(t => (
+            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #eef0f6' }}>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>{t.test_name}</p>
+                {t.modality && <p style={{ fontSize: 9, color: '#8e97b5', margin: '2px 0 0' }}>{t.modality}</p>}
+              </div>
+              <div style={{ textAlign: 'left' }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#1a8a78', margin: 0, fontFamily: 'DM Mono' }}>
+                  {t.result_numeric ?? t.result_text ?? '—'}
+                </p>
+                {t.test_date && <p style={{ fontSize: 9, color: '#8e97b5', margin: '2px 0 0', fontFamily: 'DM Mono' }}>{t.test_date}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 // ────────────────────────────────────────────────────────────
-// ConsentsTabContent — محتوى تبويب "الموافقات"
+// ConsentsTabContent
 // ────────────────────────────────────────────────────────────
 const CONSENT_LABELS: Record<string, { ar: string; en: string; required: boolean }> = {
   general_treatment: { ar: 'الموافقة العامة على العلاج', en: 'General Treatment Consent', required: true },
@@ -370,7 +516,6 @@ function ConsentsTabContent({ patientId, supabase }: { patientId: string; supaba
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Progress summary */}
       <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>الموافقات الإلزامية الموقعة</p>
@@ -384,10 +529,8 @@ function ConsentsTabContent({ patientId, supabase }: { patientId: string; supaba
         </div>
       </div>
 
-      {/* Required consents */}
       <ConsentGroup title="الموافقات الإلزامية" subtitle="Required Consents" items={required} />
 
-      {/* Optional consents */}
       {optional.length > 0 && (
         <ConsentGroup title="الموافقات الاختيارية" subtitle="Optional Consents" items={optional} />
       )}
@@ -438,7 +581,7 @@ function ConsentGroup({ title, subtitle, items }: { title: string; subtitle: str
 }
 
 // ────────────────────────────────────────────────────────────
-// FinancialTabContent — محتوى تبويب "المالية"
+// FinancialTabContent
 // ────────────────────────────────────────────────────────────
 const PAYMENT_METHOD_AR: Record<string, string> = {
   cash: 'نقدي', installment: 'تقسيط', ngo: 'خيري / NGO',
@@ -492,7 +635,6 @@ function FinancialTabContent({ patientId, supabase }: { patientId: string; supab
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Insurance */}
       <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>🛡️</span>
@@ -542,7 +684,6 @@ function FinancialTabContent({ patientId, supabase }: { patientId: string; supab
         )}
       </div>
 
-      {/* Payment */}
       <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>💰</span>
