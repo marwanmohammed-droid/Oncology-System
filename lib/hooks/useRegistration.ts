@@ -30,14 +30,11 @@ export const schema = z.object({
   emergency_relation: z.string().optional().or(z.literal('')),
   emergency_phone: z.string().optional().or(z.literal('')),
 
-  // مصدر الإحالة: طبيب / أخصائي اجتماعي / مريض آخر فقط
   referral_source: z.string().optional().or(z.literal('')),
   referring_person_name: z.string().optional().or(z.literal('')),
 
-  // تاريخ أول زيارة لازم يفضل إلزامي لأن سنة رقم الملف (MRN) مبنية عليه
   first_visit_date: z.string().min(1, 'تاريخ أول زيارة مطلوب — أساس رقم الملف'),
 
-  // الرقم التسلسلي لازم يفضل إلزامي لنفس السبب
   mrn_sequence: z.string()
     .min(1, 'رقم الملف مطلوب')
     .regex(/^\d{1,6}$/, 'أرقام فقط (حتى 6 أرقام)'),
@@ -46,7 +43,6 @@ export const schema = z.object({
   insurance_id: z.string().optional().or(z.literal('')),
   passport: z.string().optional().or(z.literal('')),
 
-  // القياسات الجسدية (بقت هنا بدل صفحة البيانات الطبية)
   weight_kg: z.string().optional().or(z.literal('')),
   height_cm: z.string().optional().or(z.literal('')),
   bsa: z.string().optional().or(z.literal('')),
@@ -56,7 +52,6 @@ export const schema = z.object({
 
 export type Step1Data = z.infer<typeof schema>
 
-// بناء رقم الملف: {سنة أول زيارة}-{الرقم التسلسلي مبطّن بأصفار لـ 4 خانات}
 function buildMrn(firstVisitDate: string, sequence: string): string {
   const year = new Date(firstVisitDate).getFullYear()
   const padded = sequence.padStart(4, '0')
@@ -66,6 +61,7 @@ function buildMrn(firstVisitDate: string, sequence: string): string {
 export function useRegistration() {
   const [step, setStep] = useState(1)
   const [patientId, setPatientId] = useState<string | null>(null)
+  const [patientSex, setPatientSex] = useState<'M' | 'F' | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
@@ -110,7 +106,7 @@ export function useRegistration() {
           referral_source: data.referral_source || null,
           referring_provider: data.referring_person_name || null,
         })
-        .select('id,mrn')
+        .select('id,mrn,sex')
         .single()
 
       if (err) {
@@ -132,7 +128,6 @@ export function useRegistration() {
         )
       }
 
-      // إنشاء أول صف في medical_history بالقياسات الجسدية — هيتكمل لاحقًا في Step2
       if (data.weight_kg || data.height_cm || data.bsa || data.bmi || data.nutri_score) {
         await supabase.from('medical_history').insert({
           patient_id: patient!.id,
@@ -145,6 +140,7 @@ export function useRegistration() {
       }
 
       setPatientId(patient!.id)
+      setPatientSex(patient!.sex)
       setStep(2)
       return patient
     } catch (e: any) {
@@ -168,6 +164,7 @@ export function useRegistration() {
         .from('diagnoses')
         .insert({
           patient_id: patientId,
+          confirmed_cancer_patient: diag.confirmed_cancer_patient === true || diag.confirmed_cancer_patient === 'yes',
           chief_complaint: diag.chief_complaint || null,
           double_primary: isDouble,
           primary_site: diag.primary_site || null,
@@ -214,6 +211,23 @@ export function useRegistration() {
         )
       }
 
+      // بروتوكولات العلاج السابقة (لو مريض مؤكد الإصابة)
+      const priorProtocols = data.priorProtocols || []
+      if (priorProtocols.length > 0) {
+        await supabase.from('prior_treatment_protocols').insert(
+          priorProtocols
+            .filter((p: any) => p.protocol_name)
+            .map((p: any) => ({
+              patient_id: patientId,
+              diagnosis_id: diagRow.id,
+              protocol_name: p.protocol_name,
+              num_cycles: p.num_cycles ? parseInt(p.num_cycles) : null,
+              duration_months: p.duration_months ? parseFloat(p.duration_months) : null,
+              notes: p.notes || null,
+            }))
+        )
+      }
+
       // التاريخ المرضي — upsert لأن Step1 غالبًا عمل أول صف
       const hist = data.history
       await supabase.from('medical_history')
@@ -230,6 +244,13 @@ export function useRegistration() {
           previous_radiation: hist.previous_radiation || null,
           drug_allergies: hist.drug_allergies || null,
           ecog_ps: hist.ecog_ps || null,
+          smoking_status: hist.smoking_status || null,
+          cigarettes_pack_per_day: hist.smoking_status === 'cigarettes' && hist.cigarettes_pack_per_day
+            ? parseFloat(hist.cigarettes_pack_per_day) : null,
+          cigarettes_duration_years: hist.smoking_status === 'cigarettes' && hist.cigarettes_duration_years
+            ? parseFloat(hist.cigarettes_duration_years) : null,
+          other_habit_details: hist.smoking_status === 'other' ? (hist.other_habit_details || null) : null,
+          menstrual_status: hist.menstrual_status || null,
         }, { onConflict: 'patient_id' })
 
       // حفظ أول قراءة للعلامات الحيوية (لو المستخدم دخل أي قيمة منها)
@@ -303,7 +324,7 @@ export function useRegistration() {
   }
 
   return {
-    step, setStep, patientId, saving, error,
+    step, setStep, patientId, patientSex, saving, error,
     saveStep1, saveStep2, saveStep3, signConsent, completeRegistration,
   }
 }

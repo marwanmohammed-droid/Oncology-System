@@ -30,6 +30,14 @@ export const IMAGING_TYPE_LABELS: Record<string, string> = {
     bone_scan: 'مسح عظمي (Bone Scan)',
     mri: 'رنين مغناطيسي (MRI)',
     ultrasound: 'موجات صوتية (Ultrasound)',
+    colonoscopy: 'منظار قولون (Colonoscopy)',
+    upper_endoscopy: 'منظار معدة (Upper Endoscopy)',
+    echo: 'موجات صوتية على القلب (Echo)',
+    ecg: 'رسم قلب (ECG)',
+    eeg: 'رسم مخ (EEG)',
+    trus: 'موجات صوتية شرجية (TRUS)',
+    tvus: 'موجات صوتية مهبلية (TVUS)',
+    psma: 'مسح مقطعي للبروستاتا (PSMA)'
 }
 
 const RESPONSE_LABELS: Record<string, string> = {

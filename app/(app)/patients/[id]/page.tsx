@@ -265,9 +265,6 @@ export default function PatientProfilePage() {
                 <div style={{ padding: '12px 18px', borderBottom: '1px solid #eef0f6', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span>📏</span>
                   <div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <VitalSignsPanel patientId={id as string} />
-                    </div>
                     <p style={{ fontSize: 13, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>القياسات الجسدية والتغذية</p>
                     <p style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono', margin: 0 }}>Anthropometrics &amp; Nutrition</p>
                   </div>
@@ -298,9 +295,12 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
               </div>
-
-
             )}
+
+            {/* Vital Signs */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <VitalSignsPanel patientId={id as string} />
+            </div>
 
           </div>
         )}

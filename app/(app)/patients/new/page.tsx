@@ -16,7 +16,7 @@ const STEPS = [
 export default function NewPatientPage() {
   const router = useRouter()
   const {
-    step, patientId, saving, error,
+    step, patientId, patientSex, saving, error,
     saveStep1, saveStep2, saveStep3, signConsent, completeRegistration,
   } = useRegistration()
 
@@ -76,7 +76,7 @@ export default function NewPatientPage() {
           error={error}
         />
       )}
-      {step === 2 && <Step2Medical onSave={saveStep2} saving={saving} error={error} />}
+      {step === 2 && <Step2Medical onSave={saveStep2} saving={saving} error={error} patientSex={patientSex ?? undefined} />}
       {step === 3 && <Step3Insurance onSave={saveStep3} saving={saving} error={error} />}
       {step === 4 && patientId && (
         <Step4Consents

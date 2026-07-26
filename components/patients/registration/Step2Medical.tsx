@@ -3,9 +3,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
+import { PRIMARY_SITES, HISTOLOGY_TYPES } from '@/lib/constants/medicalLists'
 
 const schema = z.object({
   diagnosis: z.object({
+    confirmed_cancer_patient: z.enum(['yes', 'no']).optional(),
     chief_complaint: z.string().optional().or(z.literal('')),
     double_primary: z.enum(['yes', 'no']).optional(),
     primary_site: z.string().optional().or(z.literal('')),
@@ -37,73 +39,70 @@ const schema = z.object({
     oncology_fh: z.enum(['yes', 'no']).optional(),
     oncology_fh_person: z.string().optional().or(z.literal('')),
     oncology_fh_type: z.string().optional().or(z.literal('')),
-    // أضف جوه schema.history في Step2Medical.tsx
-    vitals: z.object({
-      temperature_c: z.string().optional().or(z.literal('')),
-      bp_systolic: z.string().optional().or(z.literal('')),
-      bp_diastolic: z.string().optional().or(z.literal('')),
-      pulse_bpm: z.string().optional().or(z.literal('')),
-      respiratory_rate: z.string().optional().or(z.literal('')),
-      spo2_pct: z.string().optional().or(z.literal('')),
-      pain_score: z.string().optional().or(z.literal('')),
-    }).optional(),
+    smoking_status: z.enum(['never', 'cigarettes', 'other', 'former']).optional(),
+    cigarettes_pack_per_day: z.string().optional().or(z.literal('')),
+    cigarettes_duration_years: z.string().optional().or(z.literal('')),
+    other_habit_details: z.string().optional().or(z.literal('')),
+    menstrual_status: z.enum(['menstrual', 'postmenopausal']).optional(),
   }),
 })
 
 type FormData = z.infer<typeof schema>
 type PathologyTest = { id: string; test_name: string; modality: string; result_numeric: string; result_text: string; test_date: string }
+type PriorProtocol = { id: string; protocol_name: string; num_cycles: string; duration_months: string; notes: string }
 
-const COMORBIDITIES = ['DM Type 2', 'HTN', 'IHD / CAD', 'CKD', 'Hepatic disease', 'Autoimmune', 'Neuropathy', 'Previous malignancy']
+const COMORBIDITIES = ['DM type 1', 'DM Type 2', 'HTN', 'IHD / CAD', 'CKD', 'Hepatic disease', 'Autoimmune', 'Neuropathy', 'Previous malignancy']
 const FAMILY_HISTORY_CONDITIONS = ['DM1', 'DM2', 'HTN', 'Cardiac Disease', 'Autoimmune Disease', 'Other']
 
 const PRIMARY_SITE_TESTS: Record<string, { ihc: string[]; molecular: string[] }> = {
   Breast: { ihc: ['ER', 'PR', 'HER2', 'Ki-67'], molecular: ['BRCA1', 'BRCA2', 'Oncotype DX', 'PIK3CA'] },
   Lung: { ihc: ['PD-L1 (TPS)', 'TTF-1', 'Napsin A', 'p40'], molecular: ['EGFR', 'ALK', 'ROS1', 'KRAS', 'BRAF', 'MET Exon14', 'RET', 'NTRK'] },
   Colorectal: { ihc: ['MSI/MMR (MLH1)', 'MSI/MMR (MSH2)', 'MSI/MMR (MSH6)', 'MSI/MMR (PMS2)', 'CDX2'], molecular: ['KRAS', 'NRAS', 'BRAF', 'MSI-H/dMMR'] },
-  Lymphoma: { ihc: ['CD20', 'CD3', 'CD30', 'CD15', 'Ki-67'], molecular: ['BCL2', 'BCL6', 'MYC', 'IGH rearrangement'] },
-  Leukemia: { ihc: ['MPO', 'CD34', 'CD117'], molecular: ['FLT3', 'NPM1', 'BCR-ABL', 'JAK2'] },
+  'Lymphoma (Non-Hodgkin)': { ihc: ['CD20', 'CD3', 'CD30', 'CD15', 'Ki-67'], molecular: ['BCL2', 'BCL6', 'MYC', 'IGH rearrangement'] },
+  'Leukemia (AML)': { ihc: ['MPO', 'CD34', 'CD117'], molecular: ['FLT3', 'NPM1', 'BCR-ABL', 'JAK2'] },
   Prostate: { ihc: ['PSA', 'PSAP', 'AMACR'], molecular: ['BRCA1/2', 'AR-V7'] },
   Ovary: { ihc: ['CA-125', 'WT1', 'PAX8'], molecular: ['BRCA1', 'BRCA2', 'HRD status'] },
   default: { ihc: ['Ki-67', 'p53'], molecular: ['NGS panel'] },
 }
 
-type Props = { onSave: (data: any) => Promise<void>; saving: boolean; error: string | null }
+type Props = {
+  onSave: (data: any) => Promise<void>
+  saving: boolean
+  error: string | null
+  patientSex?: 'M' | 'F'
+}
 
-export function Step2Medical({ onSave, saving, error }: Props) {
+export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
   const [selectedComorbidities, setSelectedComorbidities] = useState<string[]>([])
   const [selectedFamilyConditions, setSelectedFamilyConditions] = useState<string[]>([])
   const [familyHistoryOther, setFamilyHistoryOther] = useState('')
   const [ihcTests, setIhcTests] = useState<PathologyTest[]>([])
   const [molecularTests, setMolecularTests] = useState<PathologyTest[]>([])
+  const [priorProtocols, setPriorProtocols] = useState<PriorProtocol[]>([])
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      diagnosis: { double_primary: 'no', metastasis_flag: 'no', sample_type: 'tissue' },
-      history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none', oncology_fh: 'no' },
+      diagnosis: { confirmed_cancer_patient: 'no', double_primary: 'no', metastasis_flag: 'no', sample_type: 'tissue' },
+      history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none', oncology_fh: 'no', smoking_status: 'never' },
     },
   })
 
+  const confirmedCancer = watch('diagnosis.confirmed_cancer_patient')
   const doublePrimary = watch('diagnosis.double_primary')
   const metastasisFlag = watch('diagnosis.metastasis_flag')
   const sampleType = watch('diagnosis.sample_type')
   const oncologyFh = watch('history.oncology_fh')
+  const smokingStatus = watch('history.smoking_status')
   const primarySiteForSuggestions = watch('diagnosis.primary_site')
 
   const suggestions = PRIMARY_SITE_TESTS[primarySiteForSuggestions || ''] || PRIMARY_SITE_TESTS.default
 
   function toggleComorbidity(item: string) {
-    const updated = selectedComorbidities.includes(item)
-      ? selectedComorbidities.filter(c => c !== item)
-      : [...selectedComorbidities, item]
-    setSelectedComorbidities(updated)
+    setSelectedComorbidities(prev => prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item])
   }
-
   function toggleFamilyCondition(item: string) {
-    const updated = selectedFamilyConditions.includes(item)
-      ? selectedFamilyConditions.filter(c => c !== item)
-      : [...selectedFamilyConditions, item]
-    setSelectedFamilyConditions(updated)
+    setSelectedFamilyConditions(prev => prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item])
   }
 
   function addTest(category: 'ihc' | 'molecular') {
@@ -111,21 +110,32 @@ export function Step2Medical({ onSave, saving, error }: Props) {
     if (category === 'ihc') setIhcTests(prev => [...prev, newTest])
     else setMolecularTests(prev => [...prev, newTest])
   }
-
   function updateTest(category: 'ihc' | 'molecular', id: string, field: keyof PathologyTest, value: string) {
     const updater = (prev: PathologyTest[]) => prev.map(t => t.id === id ? { ...t, [field]: value } : t)
     if (category === 'ihc') setIhcTests(updater)
     else setMolecularTests(updater)
   }
-
   function removeTest(category: 'ihc' | 'molecular', id: string) {
     if (category === 'ihc') setIhcTests(prev => prev.filter(t => t.id !== id))
     else setMolecularTests(prev => prev.filter(t => t.id !== id))
   }
 
+  function addProtocol() {
+    setPriorProtocols(prev => [...prev, { id: Math.random().toString(36).slice(2), protocol_name: '', num_cycles: '', duration_months: '', notes: '' }])
+  }
+  function updateProtocol(id: string, field: keyof PriorProtocol, value: string) {
+    setPriorProtocols(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+  }
+  function removeProtocol(id: string) {
+    setPriorProtocols(prev => prev.filter(p => p.id !== id))
+  }
+
   const onSubmit = (data: FormData) => {
     return onSave({
-      diagnosis: data.diagnosis,
+      diagnosis: {
+        ...data.diagnosis,
+        confirmed_cancer_patient: data.diagnosis.confirmed_cancer_patient === 'yes',
+      },
       history: {
         ...data.history,
         comorbidities: selectedComorbidities,
@@ -134,6 +144,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
       },
       ihcTests,
       molecularTests,
+      priorProtocols: confirmedCancer === 'yes' ? priorProtocols : [],
     })
   }
 
@@ -145,6 +156,43 @@ export function Step2Medical({ onSave, saving, error }: Props) {
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2 text-sm text-amber-700">
         <span>⚠️</span>
         <span>All clinical data must be entered in English only — ICD-10, SNOMED, HL7 compliance required.</span>
+      </div>
+
+      {/* ── CONFIRMED CANCER PATIENT ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">✅</span>
+          <div><p className="card-title">Confirmed Cancer Patient?</p><p className="card-subtitle">مريض مؤكد الإصابة؟</p></div>
+        </div>
+        <div className="card-body">
+          <select {...register('diagnosis.confirmed_cancer_patient')} className="input-en-full">
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+
+          {confirmedCancer === 'yes' && (
+            <div className="mt-4 border border-slate-200 rounded-lg p-3">
+              <div className="flex justify-between items-center mb-2">
+                <p className="section-label-en m-0">Prior Treatment Protocols</p>
+                <button type="button" onClick={addProtocol} className="tag-pill tag-pill-on">+ Add protocol</button>
+              </div>
+              {priorProtocols.length === 0 && <p className="text-xs text-slate-400">No prior protocols added yet</p>}
+              <div className="space-y-2">
+                {priorProtocols.map(p => (
+                  <div key={p.id} className="grid grid-cols-5 gap-2 items-center border border-slate-200 rounded-lg p-2">
+                    <input value={p.protocol_name} onChange={e => updateProtocol(p.id, 'protocol_name', e.target.value)} placeholder="Protocol name" className="input-en-full col-span-2" />
+                    <input type="number" value={p.num_cycles} onChange={e => updateProtocol(p.id, 'num_cycles', e.target.value)} placeholder="No. of cycles" className="input-en-full" />
+                    <input type="number" step="0.5" value={p.duration_months} onChange={e => updateProtocol(p.id, 'duration_months', e.target.value)} placeholder="Duration (months)" className="input-en-full" />
+                    <div className="flex gap-1">
+                      <input value={p.notes} onChange={e => updateProtocol(p.id, 'notes', e.target.value)} placeholder="Notes" className="input-en-full" />
+                      <button type="button" onClick={() => removeProtocol(p.id)} className="text-red-500 text-xs px-2">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── CHIEF COMPLAINT ── */}
@@ -184,7 +232,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
                 <label className="field-label-en">Primary site</label>
                 <select {...register('diagnosis.primary_site')} className="input-en-full">
                   <option value="">— Select site —</option>
-                  {['Breast', 'Lung', 'Colorectal', 'Lymphoma', 'Leukemia', 'Liver', 'Cervix', 'Prostate', 'Bladder', 'Thyroid', 'Brain', 'Pancreas', 'Ovary', 'Stomach', 'Kidney', 'Other'].map(s => <option key={s}>{s}</option>)}
+                  {PRIMARY_SITES.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
               <div>
@@ -195,7 +243,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
                 <label className="field-label-en">Histology</label>
                 <select {...register('diagnosis.histology')} className="input-en-full">
                   <option value="">— Select —</option>
-                  {['Adenocarcinoma', 'Squamous cell', 'Small cell', 'Large B-cell lymphoma', 'Ductal carcinoma', 'Lobular carcinoma', 'Mucinous', 'Sarcoma', 'Melanoma', 'Other'].map(h => <option key={h}>{h}</option>)}
+                  {HISTOLOGY_TYPES.map(h => <option key={h}>{h}</option>)}
                 </select>
               </div>
             </div>
@@ -206,10 +254,13 @@ export function Step2Medical({ onSave, saving, error }: Props) {
                 <div className="space-y-2">
                   <select {...register('diagnosis.primary_site')} className="input-en-full">
                     <option value="">— Select site —</option>
-                    {['Breast', 'Lung', 'Colorectal', 'Lymphoma', 'Leukemia', 'Liver', 'Cervix', 'Prostate', 'Bladder', 'Thyroid', 'Brain', 'Pancreas', 'Ovary', 'Stomach', 'Kidney', 'Other'].map(s => <option key={s}>{s}</option>)}
+                    {PRIMARY_SITES.map(s => <option key={s}>{s}</option>)}
                   </select>
                   <input {...register('diagnosis.icd10_code')} placeholder="ICD-10" className="input-en-full font-mono" />
-                  <input {...register('diagnosis.histology')} placeholder="Histology" className="input-en-full" />
+                  <select {...register('diagnosis.histology')} className="input-en-full">
+                    <option value="">— Histology —</option>
+                    {HISTOLOGY_TYPES.map(h => <option key={h}>{h}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="border border-slate-200 rounded-lg p-3">
@@ -217,10 +268,13 @@ export function Step2Medical({ onSave, saving, error }: Props) {
                 <div className="space-y-2">
                   <select {...register('diagnosis.primary_site_2')} className="input-en-full">
                     <option value="">— Select site —</option>
-                    {['Breast', 'Lung', 'Colorectal', 'Lymphoma', 'Leukemia', 'Liver', 'Cervix', 'Prostate', 'Bladder', 'Thyroid', 'Brain', 'Pancreas', 'Ovary', 'Stomach', 'Kidney', 'Other'].map(s => <option key={s}>{s}</option>)}
+                    {PRIMARY_SITES.map(s => <option key={s}>{s}</option>)}
                   </select>
                   <input {...register('diagnosis.icd10_code_2')} placeholder="ICD-10" className="input-en-full font-mono" />
-                  <input {...register('diagnosis.histology_2')} placeholder="Histology" className="input-en-full" />
+                  <select {...register('diagnosis.histology_2')} className="input-en-full">
+                    <option value="">— Histology —</option>
+                    {HISTOLOGY_TYPES.map(h => <option key={h}>{h}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -348,7 +402,6 @@ export function Step2Medical({ onSave, saving, error }: Props) {
             )}
           </div>
 
-          {/* IHC */}
           <div className="flex justify-between items-center mb-2">
             <p className="section-label-en m-0">IHC (Immunohistochemistry)</p>
             <button type="button" onClick={() => addTest('ihc')} className="tag-pill tag-pill-on">+ Add IHC test</button>
@@ -372,7 +425,6 @@ export function Step2Medical({ onSave, saving, error }: Props) {
             ))}
           </div>
 
-          {/* Molecular */}
           <div className="flex justify-between items-center mb-2">
             <p className="section-label-en m-0">Molecular Testing</p>
             <button type="button" onClick={() => addTest('molecular')} className="tag-pill tag-pill-on">+ Add molecular test</button>
@@ -404,47 +456,70 @@ export function Step2Medical({ onSave, saving, error }: Props) {
         </div>
       </div>
 
-      {/* ── VITAL SIGNS ── */}
+      {/* ── SOCIAL HABITS & MENSTRUAL STATUS ── */}
       <div className="card">
         <div className="card-header">
-          <span className="card-icon red">❤️</span>
-          <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
+          <span className="card-icon amber">🚬</span>
+          <div><p className="card-title">Social Habits</p><p className="card-subtitle">العادات الاجتماعية</p></div>
         </div>
         <div className="card-body">
-          <div className="grid grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="field-label-en">Temperature (°C)</label>
-              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+              <label className="field-label-en">Smoking / habits</label>
+              <select {...register('history.smoking_status')} className="input-en-full">
+                <option value="never">Never</option>
+                <option value="cigarettes">Cigarettes</option>
+                <option value="former">Former smoker</option>
+                <option value="other">Other</option>
+              </select>
             </div>
-            <div>
-              <label className="field-label-en">BP Systolic</label>
-              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">BP Diastolic</label>
-              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">Pulse (bpm)</label>
-              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
-            </div>
+            {patientSex === 'F' && (
+              <div>
+                <label className="field-label-en">Menstrual status</label>
+                <select {...register('history.menstrual_status')} className="input-en-full">
+                  <option value="">—</option>
+                  <option value="menstrual">Menstrual</option>
+                  <option value="postmenopausal">Postmenopausal</option>
+                </select>
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="field-label-en">Respiratory Rate</label>
-              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
+
+          {smokingStatus === 'cigarettes' && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="field-label-en">Packs / day</label>
+                <input type="number" step="0.1" {...register('history.cigarettes_pack_per_day')} placeholder="e.g. 1" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">Duration (years)</label>
+                <input type="number" {...register('history.cigarettes_duration_years')} placeholder="e.g. 15" className="input-en-full" />
+              </div>
             </div>
-            <div>
-              <label className="field-label-en">SpO2 (%)</label>
-              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
+          )}
+
+          {smokingStatus === 'former' && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="field-label-en">Packs / day</label>
+                <input type="number" step="0.1" {...register('history.cigarettes_pack_per_day')} placeholder="e.g. 1" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">Duration (years)</label>
+                <input type="number" {...register('history.cigarettes_duration_years')} placeholder="e.g. 15" className="input-en-full" />
+              </div>
             </div>
+          )}
+
+          {smokingStatus === 'other' && (
             <div>
-              <label className="field-label-en">Pain Score (0-10)</label>
-              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
+              <label className="field-label-en">Specify habit</label>
+              <input {...register('history.other_habit_details')} placeholder="e.g. Shisha, Chewing tobacco" className="input-en-full" />
             </div>
-          </div>
+          )}
         </div>
       </div>
+
       {/* ── MEDICAL HISTORY ── */}
       <div className="card">
         <div className="card-header">

@@ -11,7 +11,13 @@ const IMAGING_TYPES = [
     { key: 'pet_ct', label: 'بيت-مقطعية (PET/CT)' },
     { key: 'bone_scan', label: 'مسح عظمي (Bone Scan)' },
     { key: 'mri', label: 'رنين مغناطيسي (MRI)' },
-    { key: 'ultrasound', label: 'موجات صوتية (Ultrasound)' },
+    { key: 'colonoscopy', label: 'منظار قولون  (Colonoscopy)' },
+    { key: 'upper endoscopy', label: 'منظار معدة  (Upper Endoscopy)' },
+    { key: 'echo', label: 'موجات صوتية على القلب (Echo)' },
+    { key: 'ecg', label: ' رسم قلب (ECG)' },
+    { key: 'trus', label: 'موجات صوتية شرجية (TRUS)' },
+    { key: 'tvus', label: 'موجات صوتية مهبلية (TVUS)' },
+    { key: 'psma', label: 'مسح مقطعي للبروستاتا  (PSMA)' },
 ]
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
