@@ -480,33 +480,33 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
           <div className="grid grid-cols-4 gap-3 mb-3">
             <div>
               <label className="field-label-en">Temperature (°C)</label>
-              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+              <input type="number" step="0.1" {...register('vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
             </div>
             <div>
               <label className="field-label-en">BP Systolic</label>
-              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
+              <input type="number" {...register('vitals.bp_systolic')} placeholder="120" className="input-en-full" />
             </div>
             <div>
               <label className="field-label-en">BP Diastolic</label>
-              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
+              <input type="number" {...register('vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
             </div>
             <div>
               <label className="field-label-en">Pulse (bpm)</label>
-              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
+              <input type="number" {...register('vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div>
               <label className="field-label-en">Respiratory Rate</label>
-              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
+              <input type="number" {...register('vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
             </div>
             <div>
               <label className="field-label-en">SpO2 (%)</label>
-              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
+              <input type="number" {...register('vitals.spo2_pct')} placeholder="98" className="input-en-full" />
             </div>
             <div>
               <label className="field-label-en">Pain Score (0-10)</label>
-              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
+              <input type="number" min="0" max="10" {...register('vitals.pain_score')} placeholder="0" className="input-en-full" />
             </div>
           </div>
 
@@ -514,7 +514,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label className="field-label-en">Pallor</label>
-              <select {...register('history.vitals.pallor')} className="input-en-full">
+              <select {...register('vitals.pallor')} className="input-en-full">
                 <option value="">—</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
@@ -522,7 +522,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             </div>
             <div>
               <label className="field-label-en">Jaundice</label>
-              <select {...register('history.vitals.jaundice')} className="input-en-full">
+              <select {...register('vitals.jaundice')} className="input-en-full">
                 <option value="">—</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
@@ -534,7 +534,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="field-label-en">HBV</label>
-              <select {...register('history.vitals.hbv_status')} className="input-en-full">
+              <select {...register('vitals.hbv_status')} className="input-en-full">
                 <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
@@ -542,7 +542,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             </div>
             <div>
               <label className="field-label-en">HCV</label>
-              <select {...register('history.vitals.hcv_status')} className="input-en-full">
+              <select {...register('vitals.hcv_status')} className="input-en-full">
                 <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
@@ -550,7 +550,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             </div>
             <div>
               <label className="field-label-en">HIV</label>
-              <select {...register('history.vitals.hiv_status')} className="input-en-full">
+              <select {...register('vitals.hiv_status')} className="input-en-full">
                 <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
