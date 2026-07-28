@@ -15,6 +15,11 @@ export interface VitalSign {
     respiratory_rate: number | null
     spo2_pct: number | null
     pain_score: number | null
+    pallor: boolean | null
+    jaundice: boolean | null
+    hbv_status: 'positive' | 'negative' | null
+    hcv_status: 'positive' | 'negative' | null
+    hiv_status: 'positive' | 'negative' | null
     notes: string | null
 }
 
@@ -26,6 +31,9 @@ export interface VitalFlags {
     bradycardia: boolean
     lowSpo2: boolean
     severePain: boolean
+    pallorPresent: boolean
+    jaundicePresent: boolean
+    virologyPositive: boolean
     anyAbnormal: boolean
 }
 
@@ -37,10 +45,14 @@ export function evaluateVitals(v: Partial<VitalSign>): VitalFlags {
     const bradycardia = v.pulse_bpm != null && v.pulse_bpm < 60
     const lowSpo2 = v.spo2_pct != null && v.spo2_pct < 94
     const severePain = v.pain_score != null && v.pain_score >= 7
+    const pallorPresent = v.pallor === true
+    const jaundicePresent = v.jaundice === true
+    const virologyPositive = v.hbv_status === 'positive' || v.hcv_status === 'positive' || v.hiv_status === 'positive'
 
     return {
         fever, hypotension, hypertension, tachycardia, bradycardia, lowSpo2, severePain,
-        anyAbnormal: fever || hypotension || hypertension || tachycardia || bradycardia || lowSpo2 || severePain,
+        pallorPresent, jaundicePresent, virologyPositive,
+        anyAbnormal: fever || hypotension || hypertension || tachycardia || bradycardia || lowSpo2 || severePain || pallorPresent || jaundicePresent || virologyPositive,
     }
 }
 

@@ -265,6 +265,11 @@ export function useRegistration() {
           respiratory_rate: vitals.respiratory_rate ? parseInt(vitals.respiratory_rate) : null,
           spo2_pct: vitals.spo2_pct ? parseInt(vitals.spo2_pct) : null,
           pain_score: vitals.pain_score ? parseInt(vitals.pain_score) : null,
+          pallor: vitals.pallor === '' || !vitals.pallor ? null : vitals.pallor === 'yes',
+          jaundice: vitals.jaundice === '' || !vitals.jaundice ? null : vitals.jaundice === 'yes',
+          hbv_status: vitals.hbv_status || null,
+          hcv_status: vitals.hcv_status || null,
+          hiv_status: vitals.hiv_status || null,
         })
       }
 

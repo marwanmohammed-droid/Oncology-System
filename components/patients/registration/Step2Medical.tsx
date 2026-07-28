@@ -45,6 +45,20 @@ const schema = z.object({
     other_habit_details: z.string().optional().or(z.literal('')),
     menstrual_status: z.enum(['menstrual', 'postmenopausal']).optional(),
   }),
+  vitals: z.object({
+    temperature_c: z.string().optional().or(z.literal('')),
+    bp_systolic: z.string().optional().or(z.literal('')),
+    bp_diastolic: z.string().optional().or(z.literal('')),
+    pulse_bpm: z.string().optional().or(z.literal('')),
+    respiratory_rate: z.string().optional().or(z.literal('')),
+    spo2_pct: z.string().optional().or(z.literal('')),
+    pain_score: z.string().optional().or(z.literal('')),
+    pallor: z.enum(['yes', 'no']).optional(),
+    jaundice: z.enum(['yes', 'no']).optional(),
+    hbv_status: z.enum(['positive', 'negative']).optional(),
+    hcv_status: z.enum(['positive', 'negative']).optional(),
+    hiv_status: z.enum(['positive', 'negative']).optional(),
+  }).optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -452,6 +466,96 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <label className="field-label-en">Final Pathology Report</label>
             <textarea {...register('diagnosis.final_pathology_report')} rows={3}
               placeholder="Full narrative pathology report..." className="input-en-full" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── VITAL SIGNS ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon red">❤️</span>
+          <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-4 gap-3 mb-3">
+            <div>
+              <label className="field-label-en">Temperature (°C)</label>
+              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Systolic</label>
+              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Diastolic</label>
+              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">Pulse (bpm)</label>
+              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div>
+              <label className="field-label-en">Respiratory Rate</label>
+              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">SpO2 (%)</label>
+              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">Pain Score (0-10)</label>
+              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
+            </div>
+          </div>
+
+          <p className="section-label-en">Physical Examination</p>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="field-label-en">Pallor</label>
+              <select {...register('history.vitals.pallor')} className="input-en-full">
+                <option value="">—</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">Jaundice</label>
+              <select {...register('history.vitals.jaundice')} className="input-en-full">
+                <option value="">—</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+
+          <p className="section-label-en">Virology</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="field-label-en">HBV</label>
+              <select {...register('history.vitals.hbv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">HCV</label>
+              <select {...register('history.vitals.hcv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">HIV</label>
+              <select {...register('history.vitals.hiv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

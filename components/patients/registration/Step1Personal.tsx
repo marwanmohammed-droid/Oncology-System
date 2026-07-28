@@ -2,6 +2,8 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { schema, type Step1Data } from '@/lib/hooks/useRegistration'
+import { GOVERNORATES, COUNTRIES } from '@/lib/constants/medicalLists'
+
 
 type Props = {
   onSave: (data: Step1Data) => Promise<void>
@@ -131,9 +133,13 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             <div>
               <label className="field-label">الجنسية<span className="el">Nationality</span></label>
               <select {...register('nationality')} className="input-select">
-                <option value="Egyptian">مصري · Egyptian</option>
-                <option value="Saudi">سعودي · Saudi</option>
-                <option value="Other">أخرى · Other</option>
+                <option value="">— اختر الجنسية —</option>
+
+                {COUNTRIES.map((country) => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -281,11 +287,13 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             <div>
               <label className="field-label">المحافظة<span className="el">Governorate</span></label>
               <select {...register('governorate')} className="input-select">
-                <option value="">—</option>
-                <option>القاهرة · Cairo</option>
-                <option>الإسكندرية · Alexandria</option>
-                <option>الجيزة · Giza</option>
-                <option>أخرى · Other</option>
+                <option value="">— اختر المحافظة —</option>
+
+                {GOVERNORATES.map((governorate) => (
+                  <option key={governorate} value={governorate}>
+                    {governorate}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -332,7 +340,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
           <div className="flex gap-2 flex-wrap mb-3">
             {[
               { v: 'physician', l: 'طبيب · Physician' },
-              { v: 'social_worker', l: 'أخصائي اجتماعي · Social worker' },
+              { v: 'social_worker', l: 'تواصل اجتماعي · Social media' },
               { v: 'other_patient', l: 'مريض آخر · Other patient' },
             ].map(({ v, l }) => (
               <label key={v} className="radio-opt">

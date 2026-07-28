@@ -26,16 +26,13 @@ export function VitalSignsPanel({ patientId }: { patientId: string }) {
                 <p style={{ padding: 20, textAlign: 'center', color: '#8e97b5', fontSize: 12 }}>لا توجد قراءات مسجلة</p>
             ) : (
                 <>
-                    {/* آخر قراءة بشكل بارز */}
                     {latestVitals && (
                         <div style={{ padding: '14px 18px', borderBottom: '1px solid #eef0f6' }}>
                             <VitalReading v={latestVitals} highlight />
                         </div>
                     )}
-
-                    {/* السجل التاريخي */}
                     {vitals.length > 1 && (
-                        <div style={{ padding: '10px 18px', maxHeight: 260, overflowY: 'auto' }}>
+                        <div style={{ padding: '10px 18px', maxHeight: 300, overflowY: 'auto' }}>
                             {vitals.slice(1).map(v => <VitalReading key={v.id} v={v} />)}
                         </div>
                     )}
@@ -68,13 +65,20 @@ function VitalReading({ v, highlight }: { v: any; highlight?: boolean }) {
                     <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 20, background: '#fde8e8', color: '#e53e3e', fontWeight: 700 }}>⚠️ غير طبيعي</span>
                 )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 8 }}>
                 <VitalBox label="Temp" value={v.temperature_c ? `${v.temperature_c}°` : '—'} abnormal={flags.fever} />
                 <VitalBox label="BP" value={v.bp_systolic ? `${v.bp_systolic}/${v.bp_diastolic}` : '—'} abnormal={flags.hypotension || flags.hypertension} />
                 <VitalBox label="Pulse" value={v.pulse_bpm ?? '—'} abnormal={flags.tachycardia || flags.bradycardia} />
                 <VitalBox label="RR" value={v.respiratory_rate ?? '—'} />
                 <VitalBox label="SpO2" value={v.spo2_pct ? `${v.spo2_pct}%` : '—'} abnormal={flags.lowSpo2} />
                 <VitalBox label="Pain" value={v.pain_score ?? '—'} abnormal={flags.severePain} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                <VitalBox label="Pallor" value={v.pallor == null ? '—' : v.pallor ? 'Yes' : 'No'} abnormal={flags.pallorPresent} />
+                <VitalBox label="Jaundice" value={v.jaundice == null ? '—' : v.jaundice ? 'Yes' : 'No'} abnormal={flags.jaundicePresent} />
+                <VitalBox label="HBV" value={v.hbv_status ?? '—'} abnormal={v.hbv_status === 'positive'} />
+                <VitalBox label="HCV" value={v.hcv_status ?? '—'} abnormal={v.hcv_status === 'positive'} />
+                <VitalBox label="HIV" value={v.hiv_status ?? '—'} abnormal={v.hiv_status === 'positive'} />
             </div>
             {v.notes && <p style={{ fontSize: 10, color: '#8e97b5', margin: '6px 0 0' }}>{v.notes}</p>}
         </div>
@@ -93,12 +97,15 @@ function VitalBox({ label, value, abnormal }: { label: string; value: any; abnor
 function VitalSignsFormModal({ saving, onClose, onSave }: any) {
     const [form, setForm] = useState({
         temperature_c: '', bp_systolic: '', bp_diastolic: '', pulse_bpm: '',
-        respiratory_rate: '', spo2_pct: '', pain_score: '', notes: '',
+        respiratory_rate: '', spo2_pct: '', pain_score: '',
+        pallor: '', jaundice: '', hbv_status: '', hcv_status: '', hiv_status: '',
+        notes: '',
     })
     const [error, setError] = useState('')
 
     async function handleSubmit() {
-        if (!Object.values(form).some(v => v)) {
+        const hasAnyValue = Object.entries(form).some(([k, v]) => k !== 'notes' && v)
+        if (!hasAnyValue) {
             setError('يرجى إدخال قراءة واحدة على الأقل')
             return
         }
@@ -112,6 +119,11 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
                 respiratory_rate: form.respiratory_rate ? parseInt(form.respiratory_rate) : null,
                 spo2_pct: form.spo2_pct ? parseInt(form.spo2_pct) : null,
                 pain_score: form.pain_score ? parseInt(form.pain_score) : null,
+                pallor: form.pallor === '' ? null : form.pallor === 'yes',
+                jaundice: form.jaundice === '' ? null : form.jaundice === 'yes',
+                hbv_status: form.hbv_status || null,
+                hcv_status: form.hcv_status || null,
+                hiv_status: form.hiv_status || null,
                 notes: form.notes || null,
             })
         } catch (e: any) {
@@ -122,7 +134,7 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
             onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 18, width: 460, direction: 'rtl', fontFamily: 'Cairo' }}>
+            <div style={{ background: '#fff', borderRadius: 18, width: 500, maxHeight: '88vh', overflowY: 'auto', direction: 'rtl', fontFamily: 'Cairo' }}>
                 <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>❤️ تسجيل علامات حيوية</p>
                     <button onClick={onClose} style={{ background: '#f7f8fc', border: '1px solid #dde2ee', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', fontSize: 14, color: '#8e97b5' }}>✕</button>
@@ -134,12 +146,12 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>الحرارة (°C)</label>
                             <input type="number" step="0.1" value={form.temperature_c} onChange={e => setForm(f => ({ ...f, temperature_c: e.target.value }))}
-                                placeholder="37.0" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                                placeholder="37.0" style={inputStyle} />
                         </div>
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>النبض (bpm)</label>
                             <input type="number" value={form.pulse_bpm} onChange={e => setForm(f => ({ ...f, pulse_bpm: e.target.value }))}
-                                placeholder="72" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                                placeholder="72" style={inputStyle} />
                         </div>
                     </div>
 
@@ -147,10 +159,10 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
                         <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ضغط الدم (Systolic / Diastolic)</label>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <input type="number" value={form.bp_systolic} onChange={e => setForm(f => ({ ...f, bp_systolic: e.target.value }))}
-                                placeholder="120" style={{ flex: 1, padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                                placeholder="120" style={{ ...inputStyle, flex: 1 }} />
                             <span style={{ color: '#8e97b5' }}>/</span>
                             <input type="number" value={form.bp_diastolic} onChange={e => setForm(f => ({ ...f, bp_diastolic: e.target.value }))}
-                                placeholder="80" style={{ flex: 1, padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                                placeholder="80" style={{ ...inputStyle, flex: 1 }} />
                         </div>
                     </div>
 
@@ -158,24 +170,72 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>معدل التنفس</label>
                             <input type="number" value={form.respiratory_rate} onChange={e => setForm(f => ({ ...f, respiratory_rate: e.target.value }))}
-                                placeholder="16" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                                placeholder="16" style={inputStyle} />
                         </div>
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>SpO2 (%)</label>
                             <input type="number" value={form.spo2_pct} onChange={e => setForm(f => ({ ...f, spo2_pct: e.target.value }))}
-                                placeholder="98" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                                placeholder="98" style={inputStyle} />
                         </div>
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>Pain (0-10)</label>
                             <input type="number" min="0" max="10" value={form.pain_score} onChange={e => setForm(f => ({ ...f, pain_score: e.target.value }))}
-                                placeholder="0" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                                placeholder="0" style={inputStyle} />
+                        </div>
+                    </div>
+
+                    <p style={{ fontSize: 9, fontWeight: 700, color: '#8e97b5', fontFamily: 'DM Mono', textTransform: 'uppercase', margin: '4px 0 0' }}>Physical Examination</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>Pallor</label>
+                            <select value={form.pallor} onChange={e => setForm(f => ({ ...f, pallor: e.target.value }))} style={inputStyle}>
+                                <option value="">—</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>Jaundice</label>
+                            <select value={form.jaundice} onChange={e => setForm(f => ({ ...f, jaundice: e.target.value }))} style={inputStyle}>
+                                <option value="">—</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <p style={{ fontSize: 9, fontWeight: 700, color: '#8e97b5', fontFamily: 'DM Mono', textTransform: 'uppercase', margin: '4px 0 0' }}>Virology</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>HBV</label>
+                            <select value={form.hbv_status} onChange={e => setForm(f => ({ ...f, hbv_status: e.target.value }))} style={inputStyle}>
+                                <option value="">—</option>
+                                <option value="positive">+ve</option>
+                                <option value="negative">-ve</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>HCV</label>
+                            <select value={form.hcv_status} onChange={e => setForm(f => ({ ...f, hcv_status: e.target.value }))} style={inputStyle}>
+                                <option value="">—</option>
+                                <option value="positive">+ve</option>
+                                <option value="negative">-ve</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>HIV</label>
+                            <select value={form.hiv_status} onChange={e => setForm(f => ({ ...f, hiv_status: e.target.value }))} style={inputStyle}>
+                                <option value="">—</option>
+                                <option value="positive">+ve</option>
+                                <option value="negative">-ve</option>
+                            </select>
                         </div>
                     </div>
 
                     <div>
                         <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ملاحظات</label>
                         <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', resize: 'none', fontFamily: 'Cairo', boxSizing: 'border-box' }} />
+                            style={{ ...inputStyle, resize: 'none' }} />
                     </div>
                 </div>
                 <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
@@ -187,4 +247,10 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
             </div>
         </div>
     )
+}
+
+const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee',
+    borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr',
+    fontFamily: 'DM Mono, monospace', boxSizing: 'border-box',
 }
