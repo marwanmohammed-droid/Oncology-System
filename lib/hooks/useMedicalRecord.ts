@@ -14,6 +14,7 @@ export interface MedicalRecordData {
     chemoSessions: any[]
     labResults: any[]
     imagingStudies: any[]
+    progressNotes: any[]
 }
 
 export function useMedicalRecord(patientId: string) {
@@ -37,6 +38,7 @@ export function useMedicalRecord(patientId: string) {
                 { data: priorProtocols },
                 { data: labResults },
                 { data: imagingStudies },
+                { data: progressNotes },
             ] = await Promise.all([
                 supabase.from('patients').select('*').eq('id', patientId).single(),
                 supabase.from('diagnoses').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }),
@@ -58,6 +60,10 @@ export function useMedicalRecord(patientId: string) {
                 supabase.from('prior_treatment_protocols').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }),
                 supabase.from('lab_results').select('*').eq('patient_id', patientId).order('test_date', { ascending: false }),
                 supabase.from('imaging_studies').select('*').eq('patient_id', patientId).order('study_date', { ascending: false }),
+                supabase.from('progress_notes')
+                    .select(`*, author:profiles!progress_notes_author_id_fkey(full_name_ar)`)
+                    .eq('patient_id', patientId)
+                    .order('note_date', { ascending: false }),
             ])
 
             if (ptErr) throw ptErr
@@ -85,6 +91,7 @@ export function useMedicalRecord(patientId: string) {
                 chemoSessions: chemoSessions || [],
                 labResults: labResults || [],
                 imagingStudies: imagingStudies || [],
+                progressNotes: progressNotes || [],
             })
         } catch (e: any) {
             setError(e.message)

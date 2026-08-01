@@ -2,23 +2,9 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useImaging } from '@/lib/hooks/useImaging'
+import { IMAGING_TYPES } from '@/lib/constants/medicalLists'
 import Link from 'next/link'
 
-const IMAGING_TYPES = [
-    { key: 'xray', label: 'أشعة سينية (X-Ray)' },
-    { key: 'ct', label: 'أشعة مقطعية (CT)' },
-    { key: 'pet', label: 'بيت سكان (PET)' },
-    { key: 'pet_ct', label: 'بيت-مقطعية (PET/CT)' },
-    { key: 'bone_scan', label: 'مسح عظمي (Bone Scan)' },
-    { key: 'mri', label: 'رنين مغناطيسي (MRI)' },
-    { key: 'colonoscopy', label: 'منظار قولون  (Colonoscopy)' },
-    { key: 'upper endoscopy', label: 'منظار معدة  (Upper Endoscopy)' },
-    { key: 'echo', label: 'موجات صوتية على القلب (Echo)' },
-    { key: 'ecg', label: ' رسم قلب (ECG)' },
-    { key: 'trus', label: 'موجات صوتية شرجية (TRUS)' },
-    { key: 'tvus', label: 'موجات صوتية مهبلية (TVUS)' },
-    { key: 'psma', label: 'مسح مقطعي للبروستاتا  (PSMA)' },
-]
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
     ordered: { label: 'مطلوبة', color: '#8e97b5', bg: '#f7f8fc' },

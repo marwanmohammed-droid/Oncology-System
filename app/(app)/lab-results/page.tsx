@@ -2,17 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLabResults } from '@/lib/hooks/useLabResults'
-import Link from 'next/link'
-
-const CATEGORY_TESTS: Record<string, string[]> = {
-    cbc: ['WBC', 'ANC', 'Hemoglobin', 'Hematocrit', 'Platelets', 'RBC'],
-    chemistry: ['Glucose', 'Sodium', 'Potassium', 'Calcium', 'Albumin', 'Total Protein'],
-    tumor_markers: ['CEA', 'CA-125', 'CA 19-9', 'PSA', 'AFP', 'CA 15-3', 'Beta-hCG'],
-    coagulation: ['PT', 'PTT', 'INR', 'Fibrinogen'],
-    liver_function: ['ALT', 'AST', 'Bilirubin (Total)', 'Bilirubin (Direct)', 'ALP', 'GGT'],
-    kidney_function: ['Creatinine', 'BUN', 'eGFR', 'Uric Acid'],
-    other: [],
-}
+import { LAB_PANELS } from '@/lib/constants/medicalLists'
 
 export default function LabResultsPage() {
     const { results, loading, saving, error, addResult, markReviewed, criticalResults, categoryLabels } = useLabResults()
@@ -54,7 +44,7 @@ export default function LabResultsPage() {
                     padding: '9px 20px', background: '#1a8a78', color: '#fff',
                     borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 }}>
-                    + إضافة نتيجة
+                    + إضافة نتائج تحليل
                 </button>
             </div>
 
@@ -72,7 +62,6 @@ export default function LabResultsPage() {
                 </div>
             )}
 
-            {/* Filters */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 9, maxWidth: 320, flex: 1 }}>
                     <span style={{ color: '#8e97b5' }}>🔍</span>
@@ -93,7 +82,6 @@ export default function LabResultsPage() {
                 </select>
             </div>
 
-            {/* Results List */}
             {loading ? (
                 <div style={{ textAlign: 'center', padding: 60, color: '#8e97b5' }}>جارٍ التحميل...</div>
             ) : filtered.length === 0 ? (
@@ -115,10 +103,8 @@ export default function LabResultsPage() {
                             {filtered.map((r, i) => (
                                 <tr key={r.id} style={{ borderBottom: '1px solid #eef0f6', background: r.is_critical ? '#fef5f5' : i % 2 === 0 ? '#fff' : '#fafbfd' }}>
                                     <td style={{ padding: '12px 14px' }}>
-                                        <Link href={`/patients/${r.patient_id}`} style={{ textDecoration: 'none' }}>
-                                            <p style={{ margin: 0, fontWeight: 700, color: '#0b1f3a' }}>{r.patient?.first_name_ar} {r.patient?.last_name_ar}</p>
-                                            <p style={{ margin: '2px 0 0', fontSize: 10, color: '#8e97b5', fontFamily: 'DM Mono' }}>{r.patient?.mrn}</p>
-                                        </Link>
+                                        <p style={{ margin: 0, fontWeight: 700, color: '#0b1f3a' }}>{r.patient?.first_name_ar} {r.patient?.last_name_ar}</p>
+                                        <p style={{ margin: '2px 0 0', fontSize: 10, color: '#8e97b5', fontFamily: 'DM Mono' }}>{r.patient?.mrn}</p>
                                     </td>
                                     <td style={{ padding: '12px 14px', fontWeight: 600, color: '#1e2540' }}>{r.test_name}</td>
                                     <td style={{ padding: '12px 14px', fontSize: 10, color: '#8e97b5' }}>{categoryLabels[r.test_category]}</td>
@@ -158,12 +144,14 @@ export default function LabResultsPage() {
             )}
 
             {showNew && (
-                <NewLabResultModal
+                <NewLabPanelModal
                     patients={patients}
                     saving={saving}
                     onClose={() => setShowNew(false)}
-                    onSave={async (data: any) => {
-                        await addResult(data)
+                    onSave={async (rows: any[]) => {
+                        for (const row of rows) {
+                            await addResult(row)
+                        }
                         setShowNew(false)
                     }}
                 />
@@ -172,158 +160,159 @@ export default function LabResultsPage() {
     )
 }
 
-function NewLabResultModal({ patients, saving, onClose, onSave }: any) {
-    const [form, setForm] = useState({
-        patient_id: '',
-        test_category: 'cbc',
-        test_name: '',
-        result_value: '',
-        result_text: '',
-        unit: '',
-        reference_range: '',
-        is_abnormal: false,
-        is_critical: false,
-        test_date: new Date().toISOString().split('T')[0],
-        notes: '',
-    })
-    const [error, setError] = useState('')
+type PanelRowState = { include: boolean; result_value: string; result_text: string; is_abnormal: boolean; is_critical: boolean }
 
-    const suggestedTests = CATEGORY_TESTS[form.test_category] || []
+function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
+    const [patientId, setPatientId] = useState('')
+    const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0])
+    const [panelKey, setPanelKey] = useState('')
+    const [rows, setRows] = useState<Record<string, PanelRowState>>({})
+    const [error, setError] = useState('')
+    const [localSaving, setLocalSaving] = useState(false)
+
+    const selectedPanel = LAB_PANELS.find(p => p.key === panelKey)
+
+    function handlePanelSelect(key: string) {
+        setPanelKey(key)
+        const panel = LAB_PANELS.find(p => p.key === key)
+        if (!panel) { setRows({}); return }
+        const initialRows: Record<string, PanelRowState> = {}
+        panel.items.forEach(item => {
+            initialRows[item.name] = { include: true, result_value: '', result_text: '', is_abnormal: false, is_critical: false }
+        })
+        setRows(initialRows)
+    }
+
+    function updateRow(itemName: string, field: keyof PanelRowState, value: any) {
+        setRows(prev => ({ ...prev, [itemName]: { ...prev[itemName], [field]: value } }))
+    }
 
     async function handleSubmit() {
-        if (!form.patient_id || !form.test_name) {
-            setError('يرجى اختيار المريض واسم التحليل')
+        if (!patientId || !selectedPanel) {
+            setError('يرجى اختيار المريض والقسم')
+            return
+        }
+        const includedRows = selectedPanel.items.filter(item => rows[item.name]?.include)
+        if (includedRows.length === 0) {
+            setError('يرجى اختيار تحليل واحد على الأقل')
             return
         }
         setError('')
+        setLocalSaving(true)
         try {
-            await onSave({
-                patient_id: form.patient_id,
-                test_category: form.test_category,
-                test_name: form.test_name,
-                result_value: form.result_value ? parseFloat(form.result_value) : null,
-                result_text: form.result_text || null,
-                unit: form.unit || null,
-                reference_range: form.reference_range || null,
-                is_abnormal: form.is_abnormal,
-                is_critical: form.is_critical,
-                test_date: form.test_date,
-                notes: form.notes || null,
+            const payload = includedRows.map(item => {
+                const rowState = rows[item.name]
+                return {
+                    patient_id: patientId,
+                    test_category: selectedPanel.category,
+                    test_name: item.name,
+                    result_value: rowState.result_value ? parseFloat(rowState.result_value) : null,
+                    result_text: rowState.result_text || null,
+                    unit: item.unit || null,
+                    reference_range: item.referenceRange || null,
+                    is_abnormal: rowState.is_abnormal,
+                    is_critical: rowState.is_critical,
+                    test_date: testDate,
+                }
             })
+            await onSave(payload)
         } catch (e: any) {
             setError(e.message)
+        } finally {
+            setLocalSaving(false)
         }
     }
 
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
             onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 18, width: 500, maxHeight: '88vh', overflowY: 'auto', direction: 'rtl', fontFamily: 'Cairo' }}>
+            <div style={{ background: '#fff', borderRadius: 18, width: 620, maxHeight: '88vh', overflowY: 'auto', direction: 'rtl', fontFamily: 'Cairo' }}>
                 <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>🧪 إضافة نتيجة تحليل</p>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>🧪 إضافة نتائج تحليل</p>
                     <button onClick={onClose} style={{ background: '#f7f8fc', border: '1px solid #dde2ee', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', fontSize: 14, color: '#8e97b5' }}>✕</button>
                 </div>
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {error && <div style={{ background: '#fde8e8', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#e53e3e' }}>{error}</div>}
 
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض *</label>
-                        <select value={form.patient_id} onChange={e => setForm(f => ({ ...f, patient_id: e.target.value }))}
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                            <option value="">— اختر المريض —</option>
-                            {patients.map((p: any) => (
-                                <option key={p.id} value={p.id}>{p.first_name_ar} {p.last_name_ar} · {p.mrn}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>القسم *</label>
-                        <select value={form.test_category} onChange={e => setForm(f => ({ ...f, test_category: e.target.value, test_name: '' }))}
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                            <option value="cbc">تعداد دم كامل (CBC)</option>
-                            <option value="chemistry">كيمياء الدم</option>
-                            <option value="tumor_markers">علامات الأورام</option>
-                            <option value="coagulation">تخثر الدم</option>
-                            <option value="liver_function">وظائف الكبد</option>
-                            <option value="kidney_function">وظائف الكلى</option>
-                            <option value="other">أخرى</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>اسم التحليل *</label>
-                        {suggestedTests.length > 0 ? (
-                            <select value={form.test_name} onChange={e => setForm(f => ({ ...f, test_name: e.target.value }))}
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض *</label>
+                            <select value={patientId} onChange={e => setPatientId(e.target.value)}
                                 style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                                <option value="">— اختر —</option>
-                                {suggestedTests.map(t => <option key={t} value={t}>{t}</option>)}
-                                <option value="__custom__">أخرى (اكتب يدويًا)</option>
+                                <option value="">— اختر المريض —</option>
+                                {patients.map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.first_name_ar} {p.last_name_ar} · {p.mrn}</option>
+                                ))}
                             </select>
-                        ) : null}
-                        {(suggestedTests.length === 0 || form.test_name === '__custom__') && (
-                            <input
-                                value={form.test_name === '__custom__' ? '' : form.test_name}
-                                onChange={e => setForm(f => ({ ...f, test_name: e.target.value }))}
-                                placeholder="اكتب اسم التحليل"
-                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', marginTop: suggestedTests.length > 0 ? 8 : 0, boxSizing: 'border-box' }}
-                            />
-                        )}
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>القيمة الرقمية</label>
-                            <input type="number" step="0.01" value={form.result_value} onChange={e => setForm(f => ({ ...f, result_value: e.target.value }))}
-                                placeholder="e.g. 5.2" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
-                        </div>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>الوحدة</label>
-                            <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-                                placeholder="e.g. ×10³/µL" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>أو نتيجة نصية (بدل القيمة الرقمية)</label>
-                        <input value={form.result_text} onChange={e => setForm(f => ({ ...f, result_text: e.target.value }))}
-                            placeholder="e.g. Positive, Negative" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المعدل الطبيعي</label>
-                            <input value={form.reference_range} onChange={e => setForm(f => ({ ...f, reference_range: e.target.value }))}
-                                placeholder="e.g. 4.0-11.0" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
                         </div>
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ التحليل</label>
-                            <input type="date" value={form.test_date} onChange={e => setForm(f => ({ ...f, test_date: e.target.value }))}
+                            <input type="date" value={testDate} onChange={e => setTestDate(e.target.value)}
                                 style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 16 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={form.is_abnormal} onChange={e => setForm(f => ({ ...f, is_abnormal: e.target.checked }))} />
-                            نتيجة غير طبيعية
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, cursor: 'pointer', color: '#e53e3e' }}>
-                            <input type="checkbox" checked={form.is_critical} onChange={e => setForm(f => ({ ...f, is_critical: e.target.checked }))} />
-                            🚨 نتيجة حرجة
-                        </label>
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>نوع التحليل (Panel) *</label>
+                        <select value={panelKey} onChange={e => handlePanelSelect(e.target.value)}
+                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
+                            <option value="">— اختر نوع التحليل —</option>
+                            {LAB_PANELS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                        </select>
                     </div>
 
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ملاحظات</label>
-                        <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', resize: 'none', fontFamily: 'Cairo', boxSizing: 'border-box' }} />
-                    </div>
+                    {selectedPanel && (
+                        <div>
+                            <p style={{ fontSize: 10, color: '#8e97b5', margin: '0 0 8px' }}>
+                                فُك تحديد أي بند لا تريد تسجيله. البنود المحددة فقط سيتم حفظها.
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {selectedPanel.items.map(item => {
+                                    const row = rows[item.name]
+                                    if (!row) return null
+                                    return (
+                                        <div key={item.name} style={{
+                                            border: `1.5px solid ${row.include ? '#dde2ee' : '#f0f0f0'}`,
+                                            borderRadius: 8, padding: '10px 12px',
+                                            opacity: row.include ? 1 : .5,
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: row.include ? 8 : 0 }}>
+                                                <input type="checkbox" checked={row.include} onChange={e => updateRow(item.name, 'include', e.target.checked)} />
+                                                <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: 0, flex: 1 }}>{item.name}</p>
+                                                {item.referenceRange && (
+                                                    <span style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono' }}>{item.referenceRange} {item.unit}</span>
+                                                )}
+                                            </div>
+                                            {row.include && (
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
+                                                    <input type="number" step="0.01" value={row.result_value} onChange={e => updateRow(item.name, 'result_value', e.target.value)}
+                                                        placeholder="Numeric value" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
+                                                    <input value={row.result_text} onChange={e => updateRow(item.name, 'result_text', e.target.value)}
+                                                        placeholder="Text result" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#b45309', whiteSpace: 'nowrap' }}>
+                                                        <input type="checkbox" checked={row.is_abnormal} onChange={e => updateRow(item.name, 'is_abnormal', e.target.checked)} />
+                                                        غير طبيعي
+                                                    </label>
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#e53e3e', whiteSpace: 'nowrap' }}>
+                                                        <input type="checkbox" checked={row.is_critical} onChange={e => updateRow(item.name, 'is_critical', e.target.checked)} />
+                                                        حرج
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
                     <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
-                    <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
-                        {saving ? 'جارٍ الحفظ...' : 'حفظ النتيجة'}
+                    <button onClick={handleSubmit} disabled={saving || localSaving || !selectedPanel} style={{
+                        padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: (saving || localSaving) ? .6 : 1,
+                    }}>
+                        {(saving || localSaving) ? 'جارٍ الحفظ...' : 'حفظ كل النتائج'}
                     </button>
                 </div>
             </div>

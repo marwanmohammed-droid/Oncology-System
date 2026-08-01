@@ -390,6 +390,33 @@ export default function MedicalReportPage() {
                     </>
                 )}
 
+                {/* ملاحظات المتابعة */}
+                {data.progressNotes.length > 0 && (
+                    <>
+                        <SectionTitle icon="📝" ar={`ملاحظات المتابعة (${data.progressNotes.length})`} en="Progress Notes" />
+                        <div style={{ marginBottom: 24 }}>
+                            {data.progressNotes.map((n: any) => (
+                                <div key={n.id} style={{ borderBottom: '1px solid #eef0f6', padding: '10px 0' }}>
+                                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+                                        <span style={{ fontSize: 10, fontFamily: 'DM Mono, monospace', fontWeight: 700, color: '#1a8a78' }}>{n.note_date}</span>
+                                        <span style={{ fontSize: 9, color: '#8e97b5' }}>{n.note_type}</span>
+                                    </div>
+                                    {n.free_text ? (
+                                        <p style={{ fontSize: 11, color: '#4a5580', margin: 0, lineHeight: 1.6 }}>{n.free_text}</p>
+                                    ) : (
+                                        <div style={{ fontSize: 11, color: '#4a5580', lineHeight: 1.6 }}>
+                                            {n.subjective && <p style={{ margin: '2px 0' }}><strong>S:</strong> {n.subjective}</p>}
+                                            {n.objective && <p style={{ margin: '2px 0' }}><strong>O:</strong> {n.objective}</p>}
+                                            {n.assessment && <p style={{ margin: '2px 0' }}><strong>A:</strong> {n.assessment}</p>}
+                                            {n.plan && <p style={{ margin: '2px 0' }}><strong>P:</strong> {n.plan}</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+
                 <div style={{ borderTop: '1px solid #eef0f6', paddingTop: 16, marginTop: 32, fontSize: 9, color: '#8e97b5', textAlign: 'center', fontFamily: 'DM Mono, monospace' }}>
                     هذا التقرير تم إنشاؤه إلكترونيًا من نظام إدارة مركز الأمل للأورام بتاريخ {new Date().toLocaleString('ar-EG')}
                 </div>

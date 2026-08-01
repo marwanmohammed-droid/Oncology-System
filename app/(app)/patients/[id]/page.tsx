@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useMedicalRecord } from '@/lib/hooks/useMedicalRecord'
 import { VitalSignsPanel } from '@/components/patients/VitalSignsPanel'
+import { ProgressNotesPanel } from '@/components/patients/ProgressNotesPanel'
 
 function bmiCategory(bmi: number | null): { label: string; color: string } | null {
   if (bmi === null) return null
@@ -304,6 +305,11 @@ export default function PatientProfilePage() {
 
           </div>
         )}
+
+        {/* Progress Notes */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <ProgressNotesPanel patientId={id as string} />
+        </div>
 
         {/* MEDICAL TAB */}
         {activeTab === 'medical' && (
