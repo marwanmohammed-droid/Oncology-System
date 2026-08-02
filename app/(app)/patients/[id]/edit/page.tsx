@@ -515,6 +515,7 @@ export default function EditPatientPage() {
                                     </div>
                                 )}
                                 <div>
+
                                     <label className="field-label">المهنة</label>
                                     <input value={personalForm.occupation} onChange={e => setPersonalForm(f => ({ ...f, occupation: e.target.value }))} className="input-en" />
                                 </div>

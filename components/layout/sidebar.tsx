@@ -38,6 +38,7 @@ const NAV: NavGroup[] = [
       { href: '/clinical-trials', icon: '🔬', labelAr: 'الدراسات السريرية', labelEn: 'Clinical Trials', doctorOnly: true },
       { href: '/patient-portal', icon: '🏠', labelAr: 'بوابة المريض', labelEn: 'Patient Portal' },
       { href: '/lab-results', icon: '🧪', labelAr: 'نتائج المختبر', labelEn: 'Lab Results', doctorOnly: true },
+      { href: '/registry', icon: '📇', labelAr: 'فهرس المرضى', labelEn: 'Patient Registry', doctorOnly: true },
     ]
   },
   // أضف بعد جروب 'Clinical' مباشرة:
