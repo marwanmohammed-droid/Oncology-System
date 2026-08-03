@@ -2,28 +2,23 @@
 import { useRegistration } from '@/lib/hooks/useRegistration'
 import { Step1Personal } from '@/components/patients/registration/Step1Personal'
 import { Step2Medical } from '@/components/patients/registration/Step2Medical'
-import { Step3Insurance } from '@/components/patients/registration/Step3Insurance'
-import { Step4Consents } from '@/components/patients/registration/Step4Consents'
 import { useRouter } from 'next/navigation'
 
 const STEPS = [
   { id: 1, labelAr: 'البيانات الشخصية', labelEn: 'Personal' },
   { id: 2, labelAr: 'البيانات الطبية', labelEn: 'Medical' },
-  { id: 3, labelAr: 'التأمين والسداد', labelEn: 'Insurance' },
-  { id: 4, labelAr: 'الموافقات', labelEn: 'Consents' },
 ]
 
 export default function NewPatientPage() {
   const router = useRouter()
   const {
     step, patientId, patientSex, saving, error,
-    saveStep1, saveStep2, saveStep3, signConsent, completeRegistration,
+    saveStep1, saveStep2,
   } = useRegistration()
 
-  async function handleComplete() {
-    const ok = await completeRegistration()
-    if (ok && patientId) router.push(`/patients/${patientId}`)
-    return ok
+  async function handleSaveStep2(data: any) {
+    await saveStep2(data)
+    if (patientId) router.push(`/patients/${patientId}`)
   }
 
   return (
@@ -33,7 +28,7 @@ export default function NewPatientPage() {
           تسجيل مريض جديد
         </h1>
         <p style={{ fontSize: 11, color: '#8e97b5', fontFamily: 'DM Mono', margin: '4px 0 0' }}>
-          Step {step} of 4 · {STEPS.find(s => s.id === step)?.labelEn}
+          Step {step} of 2 · {STEPS.find(s => s.id === step)?.labelEn}
         </p>
       </div>
 
@@ -76,15 +71,12 @@ export default function NewPatientPage() {
           error={error}
         />
       )}
-      {step === 2 && <Step2Medical onSave={saveStep2} saving={saving} error={error} patientSex={patientSex ?? undefined} />}
-      {step === 3 && <Step3Insurance onSave={saveStep3} saving={saving} error={error} />}
-      {step === 4 && patientId && (
-        <Step4Consents
-          patientId={patientId}
-          onSignConsent={signConsent}
-          onComplete={handleComplete}
+      {step === 2 && (
+        <Step2Medical
+          onSave={handleSaveStep2}
           saving={saving}
           error={error}
+          patientSex={patientSex ?? undefined}
         />
       )}
     </div>
