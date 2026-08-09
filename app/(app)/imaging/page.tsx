@@ -26,9 +26,9 @@ export default function ImagingPage() {
         async function loadPatients() {
             const { data } = await supabase
                 .from('patients')
-                .select('id, mrn, first_name_ar, last_name_ar')
+                .select('id, mrn, first_name_ar, last_name_ar, created_at')
                 .is('archived_at', null)
-                .order('first_name_ar')
+                .order('created_at', { ascending: false })   // بدل .order('first_name_ar')
             setPatients(data || [])
         }
         loadPatients()
@@ -303,19 +303,17 @@ function ImagingReportModal({ study, responseLabels, onClose }: any) {
     const isReadOnly = study.status === 'completed'
 
     const [findings, setFindings] = useState(study.findings || '')
-    const [impression, setImpression] = useState(study.impression || '')
-    const [radiologistName, setRadiologistName] = useState(study.radiologist_name || '')
     const [responseAssessment, setResponseAssessment] = useState(study.response_assessment || '')
     const [error, setError] = useState('')
 
     async function handleSubmit() {
-        if (!findings || !impression || !radiologistName) {
-            setError('يرجى ملء النتائج والانطباع واسم أخصائي الأشعة')
+        if (!findings) {
+            setError('يرجى ملء النتائج')
             return
         }
         setError('')
         try {
-            await addReport(study.id, findings, impression, radiologistName, responseAssessment || undefined)
+            await addReport(study.id, findings, responseAssessment || undefined)
             onClose()
         } catch (e: any) {
             setError(e.message)
@@ -347,37 +345,23 @@ function ImagingReportModal({ study, responseLabels, onClose }: any) {
                             style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', resize: 'none', fontFamily: 'Cairo', boxSizing: 'border-box', background: isReadOnly ? '#f7f8fc' : '#fff' }} />
                     </div>
 
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>الانطباع (Impression) *</label>
-                        <textarea value={impression} onChange={e => setImpression(e.target.value)} rows={3} readOnly={isReadOnly}
-                            placeholder="الخلاصة والتوصية النهائية..."
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', resize: 'none', fontFamily: 'Cairo', boxSizing: 'border-box', background: isReadOnly ? '#f7f8fc' : '#fff' }} />
-                    </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>اسم أخصائي الأشعة *</label>
-                            <input value={radiologistName} onChange={e => setRadiologistName(e.target.value)} readOnly={isReadOnly}
-                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box', background: isReadOnly ? '#f7f8fc' : '#fff' }} />
-                        </div>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تقييم الاستجابة</label>
-                            <select value={responseAssessment} onChange={e => setResponseAssessment(e.target.value)} disabled={isReadOnly}
-                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box', background: isReadOnly ? '#f7f8fc' : '#fff' }}>
-                                <option value="">— بدون —</option>
-                                {Object.entries(responseLabels).map(([key, label]: [string, any]) => (
-                                    <option key={key} value={key}>{label}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {isReadOnly && study.reported_at && (
-                        <p style={{ fontSize: 10, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>
-                            تم إصدار التقرير في {new Date(study.reported_at).toLocaleString('ar-EG')}
-                        </p>
-                    )}
+                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تقييم الاستجابة</label>
+                    <select value={responseAssessment} onChange={e => setResponseAssessment(e.target.value)} disabled={isReadOnly}
+                        style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box', background: isReadOnly ? '#f7f8fc' : '#fff' }}>
+                        <option value="">— بدون —</option>
+                        {Object.entries(responseLabels).map(([key, label]: [string, any]) => (
+                            <option key={key} value={key}>{label}</option>
+                        ))}
+                    </select>
                 </div>
+
+                {isReadOnly && study.reported_at && (
+                    <p style={{ fontSize: 10, color: '#8e97b5', margin: 0, fontFamily: 'DM Mono' }}>
+                        تم إصدار التقرير في {new Date(study.reported_at).toLocaleString('ar-EG')}
+                    </p>
+                )}
+
                 {!isReadOnly && (
                     <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
                         <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>

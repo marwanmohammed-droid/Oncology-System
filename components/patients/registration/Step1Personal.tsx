@@ -22,8 +22,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
       date_of_birth: '',
       nationality: 'Egyptian',
       mobile_primary: '',
-      emergency_name: '',
-      emergency_phone: '',
       referral_source: 'physician',
       first_visit_date: '',
       mrn_sequence: '',
@@ -303,28 +301,6 @@ export function Step1Personal({ onSave, saving, error }: Props) {
             <div>
               <label className="field-label">الرمز البريدي<span className="el">Postal code</span></label>
               <input {...register('postal_code')} placeholder="XXXXX" className="input-en" />
-            </div>
-          </div>
-
-          <p className="section-label">Emergency Contact / جهة الاتصال في الطوارئ (اختياري)</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="field-label">الاسم<span className="el">Name</span></label>
-              <input {...register('emergency_name')} placeholder="اسم قريب المريض" className="input-ar" />
-            </div>
-            <div>
-              <label className="field-label">صلة القرابة<span className="el">Relationship</span></label>
-              <select {...register('emergency_relation')} className="input-select">
-                <option value="">—</option>
-                <option value="spouse">زوج/زوجة · Spouse</option>
-                <option value="child">ابن/ابنة · Child</option>
-                <option value="sibling">أخ/أخت · Sibling</option>
-                <option value="parent">والد/والدة · Parent</option>
-              </select>
-            </div>
-            <div>
-              <label className="field-label">رقم الهاتف<span className="el">Phone</span></label>
-              <input {...register('emergency_phone')} placeholder="+20 1XX XXX XXXX" className="input-en" />
             </div>
           </div>
         </div>

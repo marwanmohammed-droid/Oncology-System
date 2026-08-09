@@ -21,9 +21,9 @@ export default function ChemoSessionsPage() {
     async function loadPatients() {
       const { data } = await supabase
         .from('patients')
-        .select('id, mrn, first_name_ar, last_name_ar')
+        .select('id, mrn, first_name_ar, last_name_ar, created_at')
         .is('archived_at', null)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false })   // بدل .order('first_name_ar')
       setPatients(data || [])
     }
     loadPatients()

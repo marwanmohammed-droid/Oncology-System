@@ -26,10 +26,6 @@ export const schema = z.object({
   district: z.string().optional().or(z.literal('')),
   postal_code: z.string().optional().or(z.literal('')),
 
-  emergency_name: z.string().optional().or(z.literal('')),
-  emergency_relation: z.string().optional().or(z.literal('')),
-  emergency_phone: z.string().optional().or(z.literal('')),
-
   referral_source: z.string().optional().or(z.literal('')),
   referring_person_name: z.string().optional().or(z.literal('')),
 
@@ -100,9 +96,6 @@ export function useRegistration() {
           email: data.email || null,
           governorate: data.governorate || null,
           district: data.district || null,
-          emergency_name: data.emergency_name || null,
-          emergency_relation: data.emergency_relation || null,
-          emergency_phone: data.emergency_phone || null,
           referral_source: data.referral_source || null,
           referring_provider: data.referring_person_name || null,
         })
@@ -168,10 +161,8 @@ export function useRegistration() {
           chief_complaint: diag.chief_complaint || null,
           double_primary: isDouble,
           primary_site: diag.primary_site || null,
-          icd10_code: diag.icd10_code || null,
           histology: diag.histology || null,
           primary_site_2: isDouble ? (diag.primary_site_2 || null) : null,
-          icd10_code_2: isDouble ? (diag.icd10_code_2 || null) : null,
           histology_2: isDouble ? (diag.histology_2 || null) : null,
           stage: diag.stage || null,
           grade: diag.grade || null,
@@ -234,11 +225,13 @@ export function useRegistration() {
         .upsert({
           patient_id: patientId,
           comorbidities: hist.comorbidities || [],
+          past_history: hist.past_history || null,
           family_history_conditions: hist.family_history_conditions || [],
           family_history_other: hist.family_history_other || null,
-          oncology_fh: hist.oncology_fh === 'yes',
-          oncology_fh_person: hist.oncology_fh === 'yes' ? (hist.oncology_fh_person || null) : null,
-          oncology_fh_type: hist.oncology_fh === 'yes' ? (hist.oncology_fh_type || null) : null,
+          oncology_fh: (hist.oncology_fh_details || []).length > 0,
+          oncology_fh_details: hist.oncology_fh_details || [],
+          ongoing_medications: hist.ongoing_medications || [],
+          ongoing_medications_other: hist.ongoing_medications_other || null,
           previous_surgeries: hist.previous_surgeries || null,
           previous_chemo: hist.previous_chemo || null,
           previous_radiation: hist.previous_radiation || null,

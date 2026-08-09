@@ -97,14 +97,13 @@ export function useImaging(patientId?: string) {
         setStudies(prev => prev.map(s => s.id === studyId ? { ...s, status } : s))
     }
 
-    const addReport = async (studyId: string, findings: string, impression: string, radiologistName: string, responseAssessment?: string) => {
+    const addReport = async (studyId: string, findings: string, responseAssessment?: string) => {
         setSaving(true); setError(null)
         try {
             const { error: err } = await supabase
                 .from('imaging_studies')
                 .update({
-                    findings, impression,
-                    radiologist_name: radiologistName,
+                    findings,
                     response_assessment: responseAssessment || null,
                     status: 'completed',
                     reported_at: new Date().toISOString(),
