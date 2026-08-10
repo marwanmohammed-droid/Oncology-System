@@ -63,7 +63,7 @@ type PathologyTest = { id: string; test_name: string; modality: string; result_n
 type PriorProtocol = { id: string; protocol_name: string; num_cycles: string; duration_months: string; notes: string }
 type OncologyFHEntry = { id: string; person: string; type: string }
 
-const COMORBIDITIES = ['DM Type 2', 'HTN', 'IHD / CAD', 'CKD', 'Hepatic disease', 'Autoimmune', 'Neuropathy', 'Previous malignancy']
+const COMORBIDITIES = ['DM Type 1', 'DM Type 2', 'HTN', 'IHD / CAD', 'CKD', 'Hepatic disease', 'Autoimmune', 'Neuropathy', 'Previous malignancy']
 const FAMILY_HISTORY_CONDITIONS = ['DM1', 'DM2', 'HTN', 'Cardiac Disease', 'Autoimmune Disease', 'Other']
 const ONGOING_MEDICATIONS = [
   'Anti-coagulants', 'Anti-platelets', 'Anti-HTN', 'Anti-diabetics (Oral)', 'Insulin',
@@ -500,6 +500,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <option value="never">Never</option>
                 <option value="cigarettes">Cigarettes</option>
                 <option value="former">Former smoker</option>
+                <option value="passive">Passive smoker</option>
                 <option value="other">Other</option>
               </select>
             </div>
@@ -508,6 +509,8 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <label className="field-label-en">Menstrual status</label>
                 <select {...register('history.menstrual_status')} className="input-en-full">
                   <option value="">—</option>
+                  <option value="1ry_amenorrhea">1ry amenorrhea</option>
+                  <option value="2ry_amenorrhea">2ry amenorrhea</option>
                   <option value="menstrual">Menstrual</option>
                   <option value="postmenopausal">Postmenopausal</option>
                 </select>
@@ -516,6 +519,19 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
           </div>
 
           {smokingStatus === 'cigarettes' && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="field-label-en">Packs / day</label>
+                <input type="number" step="0.1" {...register('history.cigarettes_pack_per_day')} placeholder="e.g. 1" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">Duration (years)</label>
+                <input type="number" {...register('history.cigarettes_duration_years')} placeholder="e.g. 15" className="input-en-full" />
+              </div>
+            </div>
+          )}
+
+          {smokingStatus === 'former' && (
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="field-label-en">Packs / day</label>
@@ -698,7 +714,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">Pallor</label>
               <select {...register('history.vitals.pallor')} className="input-en-full">
-                <option value="">N/A</option>
+                <option value="N/A">N/A</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
@@ -706,7 +722,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">Jaundice</label>
               <select {...register('history.vitals.jaundice')} className="input-en-full">
-                <option value="">N/A</option>
+                <option value="N/A">N/A</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
@@ -718,7 +734,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">HBV</label>
               <select {...register('history.vitals.hbv_status')} className="input-en-full">
-                <option value="">N/A</option>
+                <option value="N/A">N/A</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
               </select>
@@ -726,7 +742,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">HCV</label>
               <select {...register('history.vitals.hcv_status')} className="input-en-full">
-                <option value="">N/A</option>
+                <option value="N/A">N/A</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
               </select>
