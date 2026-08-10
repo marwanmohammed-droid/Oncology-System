@@ -158,6 +158,20 @@ export function Step1Personal({ onSave, saving, error }: Props) {
                 <input type="number" min="0" {...register('num_children')} placeholder="0" className="input-en" />
               </div>
             )}
+
+            {maritalStatus === 'divorced' && (
+              <div>
+                <label className="field-label">عدد الأطفال<span className="el">No. of children</span></label>
+                <input type="number" min="0" {...register('num_children')} placeholder="0" className="input-en" />
+              </div>
+            )}
+
+            {maritalStatus === 'widowed' && (
+              <div>
+                <label className="field-label">عدد الأطفال<span className="el">No. of children</span></label>
+                <input type="number" min="0" {...register('num_children')} placeholder="0" className="input-en" />
+              </div>
+            )}
             <div>
               <label className="field-label">المهنة<span className="el">Occupation</span></label>
               <input {...register('occupation')} placeholder="e.g. Teacher, Engineer" className="input-en" />
