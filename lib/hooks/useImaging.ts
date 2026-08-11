@@ -7,6 +7,7 @@ export interface ImagingStudy {
     patient_id: string
     ordered_by: string | null
     imaging_type: string
+    custom_type_label: string | null
     body_region: string | null
     study_date: string
     status: string
@@ -37,7 +38,8 @@ export const IMAGING_TYPE_LABELS: Record<string, string> = {
     eeg: 'رسم مخ (EEG)',
     trus: 'موجات صوتية شرجية (TRUS)',
     tvus: 'موجات صوتية مهبلية (TVUS)',
-    psma: 'مسح مقطعي للبروستاتا (PSMA)'
+    psma: 'مسح مقطعي للبروستاتا (PSMA)',
+    other: 'أخرى',   // 👈 جديد (fallback لو مفيش نص مخصص)
 }
 
 const RESPONSE_LABELS: Record<string, string> = {
@@ -45,6 +47,13 @@ const RESPONSE_LABELS: Record<string, string> = {
     partial_response: 'استجابة جزئية',
     stable_disease: 'مرض مستقر',
     progressive_disease: 'تطور المرض',
+}
+
+export function getImagingTypeLabel(study: Pick<ImagingStudy, 'imaging_type' | 'custom_type_label'>): string {
+    if (study.imaging_type === 'other') {
+        return study.custom_type_label?.trim() || IMAGING_TYPE_LABELS.other
+    }
+    return IMAGING_TYPE_LABELS[study.imaging_type] || study.imaging_type
 }
 
 export function useImaging(patientId?: string) {
@@ -123,6 +132,7 @@ export function useImaging(patientId?: string) {
         studies, loading, saving, error,
         addStudy, updateStatus, addReport,
         typeLabels: IMAGING_TYPE_LABELS,
+        getTypeLabel: getImagingTypeLabel,
         responseLabels: RESPONSE_LABELS,
         refresh: fetchStudies,
     }

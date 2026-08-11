@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useImaging } from '@/lib/hooks/useImaging'
 import { IMAGING_TYPES } from '@/lib/constants/medicalLists'
+import { useCustomTestTypes } from '@/lib/hooks/useCustomTestTypes'
 import Link from 'next/link'
 
 
@@ -14,7 +15,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 }
 
 export default function ImagingPage() {
-    const { studies, loading, saving, error, addStudy, updateStatus, typeLabels, responseLabels } = useImaging()
+    const { studies, loading, saving, error, addStudy, updateStatus, typeLabels, getTypeLabel, responseLabels } = useImaging()
     const [patients, setPatients] = useState<any[]>([])
     const [showNew, setShowNew] = useState(false)
     const [reportTarget, setReportTarget] = useState<any>(null)
@@ -133,7 +134,7 @@ export default function ImagingPage() {
                                     </p>
                                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                         <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 20, background: '#faf5ff', color: '#9333ea', border: '1px solid rgba(147,51,234,.3)', fontFamily: 'DM Mono', fontWeight: 600 }}>
-                                            {typeLabels[s.imaging_type]}
+                                            {getTypeLabel(s)}
                                         </span>
                                         <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40`, fontFamily: 'DM Mono', fontWeight: 600 }}>
                                             {cfg.label}
@@ -202,15 +203,39 @@ export default function ImagingPage() {
 }
 
 function NewImagingModal({ patients, saving, onClose, onSave }: any) {
+    const { customTypes, addCustomType } = useCustomTestTypes('imaging')
     const [form, setForm] = useState({
-        patient_id: '',
-        imaging_type: 'ct',
-        body_region: '',
-        study_date: new Date().toISOString().split('T')[0],
-        is_baseline: false,
-        notes: '',
+        patient_id: '', imaging_type: '', custom_type_name: '',
+        body_region: '', study_date: new Date().toISOString().split('T')[0],
+        is_baseline: false, notes: '',
     })
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showAddNew, setShowAddNew] = useState(false)
+    const [newTypeName, setNewTypeName] = useState('')
     const [error, setError] = useState('')
+
+    const allTypes = [
+        ...IMAGING_TYPES.map(t => ({ key: t.key, label: t.label, isCustom: false })),
+        ...customTypes.map(t => ({ key: `custom:${t.id}`, label: t.name, isCustom: true })),
+    ]
+    const searchResults = searchQuery
+        ? allTypes.filter(t => t.label.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+        : allTypes.slice(0, 8)
+
+    const selectedTypeLabel = form.imaging_type
+        ? allTypes.find(t => t.key === form.imaging_type)?.label
+        : ''
+
+    async function handleAddNew() {
+        if (!newTypeName) return
+        const created = await addCustomType({ name: newTypeName })
+        if (created) {
+            setForm(f => ({ ...f, imaging_type: `custom:${created.id}`, custom_type_name: created.name }))
+            setSearchQuery(created.name)
+        }
+        setShowAddNew(false)
+        setNewTypeName('')
+    }
 
     async function handleSubmit() {
         if (!form.patient_id || !form.imaging_type) {
@@ -219,9 +244,11 @@ function NewImagingModal({ patients, saving, onClose, onSave }: any) {
         }
         setError('')
         try {
+            const isCustom = form.imaging_type.startsWith('custom:')
             await onSave({
                 patient_id: form.patient_id,
-                imaging_type: form.imaging_type,
+                imaging_type: isCustom ? 'other' : form.imaging_type,
+                custom_type_label: isCustom ? selectedTypeLabel : null,
                 body_region: form.body_region || null,
                 study_date: form.study_date,
                 is_baseline: form.is_baseline,
@@ -255,12 +282,28 @@ function NewImagingModal({ patients, saving, onClose, onSave }: any) {
                         </select>
                     </div>
 
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>نوع الأشعة *</label>
-                        <select value={form.imaging_type} onChange={e => setForm((f: any) => ({ ...f, imaging_type: e.target.value }))}
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                            {IMAGING_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                        </select>
+                    <div style={{ position: 'relative' }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ابحث عن نوع الأشعة *</label>
+                        <input
+                            value={searchQuery}
+                            onChange={e => { setSearchQuery(e.target.value); setForm((f: any) => ({ ...f, imaging_type: '' })) }}
+                            placeholder="اكتب نوع الأشعة..."
+                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                        />
+                        {searchQuery && !form.imaging_type && (
+                            <div style={{ border: '1.5px solid #dde2ee', borderRadius: 8, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff' }}>
+                                {searchResults.map(t => (
+                                    <div key={t.key} onClick={() => { setForm((f: any) => ({ ...f, imaging_type: t.key })); setSearchQuery(t.label) }}
+                                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #eef0f6', fontSize: 12 }}>
+                                        {t.label}
+                                    </div>
+                                ))}
+                                <div onClick={() => { setShowAddNew(true); setNewTypeName(searchQuery) }}
+                                    style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: '#1a8a78', fontWeight: 700, background: '#f0fdf4' }}>
+                                    + إضافة "{searchQuery}" كنوع جديد
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -293,6 +336,21 @@ function NewImagingModal({ patients, saving, onClose, onSave }: any) {
                         {saving ? 'جارٍ الحفظ...' : 'حفظ الطلب'}
                     </button>
                 </div>
+
+                {showAddNew && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.7)', zIndex: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={e => e.target === e.currentTarget && setShowAddNew(false)}>
+                        <div style={{ background: '#fff', borderRadius: 14, width: 340, padding: 20, direction: 'rtl', fontFamily: 'Cairo' }}>
+                            <p style={{ fontSize: 14, fontWeight: 700, color: '#0b1f3a', margin: '0 0 14px' }}>➕ إضافة نوع أشعة جديد</p>
+                            <input value={newTypeName} onChange={e => setNewTypeName(e.target.value)}
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 14 }} />
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                <button onClick={() => setShowAddNew(false)} style={{ padding: '7px 14px', borderRadius: 7, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
+                                <button onClick={handleAddNew} style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>إضافة</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )

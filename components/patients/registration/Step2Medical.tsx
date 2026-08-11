@@ -714,17 +714,19 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">Pallor</label>
               <select {...register('history.vitals.pallor')} className="input-en-full">
-                <option value="N/A">N/A</option>
+                <option value="">-</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
+                <option value="N/A">N/A</option>
               </select>
             </div>
             <div>
               <label className="field-label-en">Jaundice</label>
               <select {...register('history.vitals.jaundice')} className="input-en-full">
-                <option value="N/A">N/A</option>
+                <option value="">-</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
+                <option value="N/A">N/A</option>
               </select>
             </div>
           </div>
@@ -734,25 +736,28 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">HBV</label>
               <select {...register('history.vitals.hbv_status')} className="input-en-full">
-                <option value="N/A">N/A</option>
+                <option value="">-</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
+                <option value="N/A">N/A</option>
               </select>
             </div>
             <div>
               <label className="field-label-en">HCV</label>
               <select {...register('history.vitals.hcv_status')} className="input-en-full">
-                <option value="N/A">N/A</option>
+                <option value="">-</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
+                <option value="N/A">N/A</option>
               </select>
             </div>
             <div>
               <label className="field-label-en">HIV</label>
               <select {...register('history.vitals.hiv_status')} className="input-en-full">
-                <option value="">N/A</option>
+                <option value="">-</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
+                <option value="N/A">N/A</option>
               </select>
             </div>
           </div>

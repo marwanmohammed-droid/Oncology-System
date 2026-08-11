@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLabResults } from '@/lib/hooks/useLabResults'
 import { LAB_PANELS } from '@/lib/constants/medicalLists'
+import { useCustomTestTypes } from '@/lib/hooks/useCustomTestTypes'
 
 export default function LabResultsPage() {
     const { results, loading, saving, error, addResult, markReviewed, criticalResults, categoryLabels } = useLabResults()
@@ -163,6 +164,7 @@ export default function LabResultsPage() {
 type PanelRowState = { include: boolean; result_value: string; result_text: string; is_abnormal: boolean; is_critical: boolean }
 
 function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
+    const { customTypes, addCustomType } = useCustomTestTypes('lab')
     const [patientId, setPatientId] = useState('')
     const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0])
     const [panelKey, setPanelKey] = useState('')
@@ -170,7 +172,26 @@ function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
     const [error, setError] = useState('')
     const [localSaving, setLocalSaving] = useState(false)
 
+    // ── وضع "بحث + إضافة تحليل مفرد" ──
+    const [searchMode, setSearchMode] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [selectedSingleTest, setSelectedSingleTest] = useState<{ name: string; category: string; unit?: string; referenceRange?: string } | null>(null)
+    const [showAddNew, setShowAddNew] = useState(false)
+    const [newTestForm, setNewTestForm] = useState({ name: '', category: 'other', unit: '', reference_range: '' })
+    const [singleResult, setSingleResult] = useState({ result_value: '', result_text: '', is_abnormal: false, is_critical: false })
+
     const selectedPanel = LAB_PANELS.find(p => p.key === panelKey)
+
+    // كل التحاليل المتاحة للبحث: من الـ panels الثابتة + المخصصة المحفوظة
+    const allSearchableTests = [
+        ...LAB_PANELS.flatMap(p => p.items.map(item => ({ name: item.name, category: p.category, unit: item.unit, referenceRange: item.referenceRange }))),
+        ...customTypes.map(t => ({ name: t.name, category: t.category || 'other', unit: t.unit || undefined, referenceRange: t.reference_range || undefined })),
+    ]
+    const uniqueTests = Array.from(new Map(allSearchableTests.map(t => [t.name.toLowerCase(), t])).values())
+
+    const searchResults = searchQuery.length > 0
+        ? uniqueTests.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+        : []
 
     function handlePanelSelect(key: string) {
         setPanelKey(key)
@@ -187,16 +208,30 @@ function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
         setRows(prev => ({ ...prev, [itemName]: { ...prev[itemName], [field]: value } }))
     }
 
-    async function handleSubmit() {
-        if (!patientId || !selectedPanel) {
-            setError('يرجى اختيار المريض والقسم')
-            return
-        }
+    async function handleAddNewTest() {
+        if (!newTestForm.name) { setError('يرجى كتابة اسم التحليل'); return }
+        setError('')
+        const created = await addCustomType({
+            name: newTestForm.name,
+            category: newTestForm.category,
+            unit: newTestForm.unit,
+            reference_range: newTestForm.reference_range,
+        })
+        setSelectedSingleTest({
+            name: newTestForm.name,
+            category: newTestForm.category,
+            unit: newTestForm.unit || undefined,
+            referenceRange: newTestForm.reference_range || undefined,
+        })
+        setSearchQuery(newTestForm.name)
+        setShowAddNew(false)
+        setNewTestForm({ name: '', category: 'other', unit: '', reference_range: '' })
+    }
+
+    async function handleSubmitPanel() {
+        if (!patientId || !selectedPanel) { setError('يرجى اختيار المريض والقسم'); return }
         const includedRows = selectedPanel.items.filter(item => rows[item.name]?.include)
-        if (includedRows.length === 0) {
-            setError('يرجى اختيار تحليل واحد على الأقل')
-            return
-        }
+        if (includedRows.length === 0) { setError('يرجى اختيار تحليل واحد على الأقل'); return }
         setError('')
         setLocalSaving(true)
         try {
@@ -216,6 +251,30 @@ function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
                 }
             })
             await onSave(payload)
+        } catch (e: any) {
+            setError(e.message)
+        } finally {
+            setLocalSaving(false)
+        }
+    }
+
+    async function handleSubmitSingle() {
+        if (!patientId || !selectedSingleTest) { setError('يرجى اختيار المريض والتحليل'); return }
+        setError('')
+        setLocalSaving(true)
+        try {
+            await onSave([{
+                patient_id: patientId,
+                test_category: selectedSingleTest.category,
+                test_name: selectedSingleTest.name,
+                result_value: singleResult.result_value ? parseFloat(singleResult.result_value) : null,
+                result_text: singleResult.result_text || null,
+                unit: selectedSingleTest.unit || null,
+                reference_range: selectedSingleTest.referenceRange || null,
+                is_abnormal: singleResult.is_abnormal,
+                is_critical: singleResult.is_critical,
+                test_date: testDate,
+            }])
         } catch (e: any) {
             setError(e.message)
         } finally {
@@ -252,68 +311,189 @@ function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
                         </div>
                     </div>
 
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>نوع التحليل (Panel) *</label>
-                        <select value={panelKey} onChange={e => handlePanelSelect(e.target.value)}
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                            <option value="">— اختر نوع التحليل —</option>
-                            {LAB_PANELS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-                        </select>
+                    {/* Mode toggle */}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => setSearchMode(false)} style={{
+                            flex: 1, padding: '7px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                            background: !searchMode ? '#1a8a78' : '#f7f8fc', color: !searchMode ? '#fff' : '#4a5580', fontSize: 11, fontWeight: 600,
+                        }}>
+                            اختيار قسم كامل (Panel)
+                        </button>
+                        <button onClick={() => setSearchMode(true)} style={{
+                            flex: 1, padding: '7px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                            background: searchMode ? '#1a8a78' : '#f7f8fc', color: searchMode ? '#fff' : '#4a5580', fontSize: 11, fontWeight: 600,
+                        }}>
+                            🔍 بحث عن تحليل واحد
+                        </button>
                     </div>
 
-                    {selectedPanel && (
-                        <div>
-                            <p style={{ fontSize: 10, color: '#8e97b5', margin: '0 0 8px' }}>
-                                فُك تحديد أي بند لا تريد تسجيله. البنود المحددة فقط سيتم حفظها.
-                            </p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {selectedPanel.items.map(item => {
-                                    const row = rows[item.name]
-                                    if (!row) return null
-                                    return (
-                                        <div key={item.name} style={{
-                                            border: `1.5px solid ${row.include ? '#dde2ee' : '#f0f0f0'}`,
-                                            borderRadius: 8, padding: '10px 12px',
-                                            opacity: row.include ? 1 : .5,
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: row.include ? 8 : 0 }}>
-                                                <input type="checkbox" checked={row.include} onChange={e => updateRow(item.name, 'include', e.target.checked)} />
-                                                <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: 0, flex: 1 }}>{item.name}</p>
-                                                {item.referenceRange && (
-                                                    <span style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono' }}>{item.referenceRange} {item.unit}</span>
-                                                )}
-                                            </div>
-                                            {row.include && (
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
-                                                    <input type="number" step="0.01" value={row.result_value} onChange={e => updateRow(item.name, 'result_value', e.target.value)}
-                                                        placeholder="Numeric value" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
-                                                    <input value={row.result_text} onChange={e => updateRow(item.name, 'result_text', e.target.value)}
-                                                        placeholder="Text result" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
-                                                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#b45309', whiteSpace: 'nowrap' }}>
-                                                        <input type="checkbox" checked={row.is_abnormal} onChange={e => updateRow(item.name, 'is_abnormal', e.target.checked)} />
-                                                        غير طبيعي
-                                                    </label>
-                                                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#e53e3e', whiteSpace: 'nowrap' }}>
-                                                        <input type="checkbox" checked={row.is_critical} onChange={e => updateRow(item.name, 'is_critical', e.target.checked)} />
-                                                        حرج
-                                                    </label>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
+                    {!searchMode ? (
+                        <>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>نوع التحليل (Panel) *</label>
+                                <select value={panelKey} onChange={e => handlePanelSelect(e.target.value)}
+                                    style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
+                                    <option value="">— اختر نوع التحليل —</option>
+                                    {LAB_PANELS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                                </select>
                             </div>
-                        </div>
+
+                            {selectedPanel && (
+                                <div>
+                                    <p style={{ fontSize: 10, color: '#8e97b5', margin: '0 0 8px' }}>فُك تحديد أي بند لا تريد تسجيله.</p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {selectedPanel.items.map(item => {
+                                            const row = rows[item.name]
+                                            if (!row) return null
+                                            return (
+                                                <div key={item.name} style={{ border: `1.5px solid ${row.include ? '#dde2ee' : '#f0f0f0'}`, borderRadius: 8, padding: '10px 12px', opacity: row.include ? 1 : .5 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: row.include ? 8 : 0 }}>
+                                                        <input type="checkbox" checked={row.include} onChange={e => updateRow(item.name, 'include', e.target.checked)} />
+                                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: 0, flex: 1 }}>{item.name}</p>
+                                                        {item.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono' }}>{item.referenceRange} {item.unit}</span>}
+                                                    </div>
+                                                    {row.include && (
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
+                                                            <input type="number" step="0.01" value={row.result_value} onChange={e => updateRow(item.name, 'result_value', e.target.value)}
+                                                                placeholder="Numeric value" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
+                                                            <input value={row.result_text} onChange={e => updateRow(item.name, 'result_text', e.target.value)}
+                                                                placeholder="Text result" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#b45309', whiteSpace: 'nowrap' }}>
+                                                                <input type="checkbox" checked={row.is_abnormal} onChange={e => updateRow(item.name, 'is_abnormal', e.target.checked)} /> غير طبيعي
+                                                            </label>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#e53e3e', whiteSpace: 'nowrap' }}>
+                                                                <input type="checkbox" checked={row.is_critical} onChange={e => updateRow(item.name, 'is_critical', e.target.checked)} /> حرج
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ position: 'relative' }}>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ابحث عن اسم التحليل *</label>
+                                <input
+                                    value={searchQuery}
+                                    onChange={e => { setSearchQuery(e.target.value); setSelectedSingleTest(null) }}
+                                    placeholder="اكتب اسم التحليل..."
+                                    style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }}
+                                />
+                                {searchQuery && !selectedSingleTest && (
+                                    <div style={{ border: '1.5px solid #dde2ee', borderRadius: 8, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff' }}>
+                                        {searchResults.map(t => (
+                                            <div key={t.name} onClick={() => { setSelectedSingleTest(t); setSearchQuery(t.name) }}
+                                                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #eef0f6', fontSize: 12 }}>
+                                                <span style={{ fontWeight: 600, color: '#0b1f3a' }}>{t.name}</span>
+                                                {t.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', marginRight: 8, fontFamily: 'DM Mono' }}>{t.referenceRange} {t.unit}</span>}
+                                            </div>
+                                        ))}
+                                        <div onClick={() => { setShowAddNew(true); setNewTestForm(f => ({ ...f, name: searchQuery })) }}
+                                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: '#1a8a78', fontWeight: 700, background: '#f0fdf4' }}>
+                                            + إضافة "{searchQuery}" كتحليل جديد
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedSingleTest && (
+                                <div style={{ border: '1.5px solid #dde2ee', borderRadius: 8, padding: '10px 12px' }}>
+                                    <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: '0 0 8px' }}>{selectedSingleTest.name}</p>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                                        <input type="number" step="0.01" value={singleResult.result_value} onChange={e => setSingleResult(f => ({ ...f, result_value: e.target.value }))}
+                                            placeholder="Numeric value" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
+                                        <input value={singleResult.result_text} onChange={e => setSingleResult(f => ({ ...f, result_text: e.target.value }))}
+                                            placeholder="Text result" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 12 }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#b45309' }}>
+                                            <input type="checkbox" checked={singleResult.is_abnormal} onChange={e => setSingleResult(f => ({ ...f, is_abnormal: e.target.checked }))} /> غير طبيعي
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#e53e3e' }}>
+                                            <input type="checkbox" checked={singleResult.is_critical} onChange={e => setSingleResult(f => ({ ...f, is_critical: e.target.checked }))} /> حرج
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
                 <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
                     <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
-                    <button onClick={handleSubmit} disabled={saving || localSaving || !selectedPanel} style={{
-                        padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff',
-                        fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: (saving || localSaving) ? .6 : 1,
-                    }}>
-                        {(saving || localSaving) ? 'جارٍ الحفظ...' : 'حفظ كل النتائج'}
+                    <button
+                        onClick={searchMode ? handleSubmitSingle : handleSubmitPanel}
+                        disabled={saving || localSaving || (searchMode ? !selectedSingleTest : !selectedPanel)}
+                        style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: (saving || localSaving) ? .6 : 1 }}
+                    >
+                        {(saving || localSaving) ? 'جارٍ الحفظ...' : 'حفظ النتائج'}
                     </button>
+                </div>
+
+                {showAddNew && (
+                    <AddNewTestModal
+                        initialName={searchQuery}
+                        onClose={() => setShowAddNew(false)}
+                        onAdd={async (form: any) => {
+                            setNewTestForm(form)
+                            await handleAddNewTest()
+                        }}
+                    />
+                )}
+            </div>
+        </div>
+    )
+}
+
+function AddNewTestModal({ initialName, onClose, onAdd }: any) {
+    const [form, setForm] = useState({ name: initialName, category: 'other', unit: '', reference_range: '' })
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.7)', zIndex: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={e => e.target === e.currentTarget && onClose()}>
+            <div style={{ background: '#fff', borderRadius: 14, width: 380, padding: 20, direction: 'rtl', fontFamily: 'Cairo' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#0b1f3a', margin: '0 0 14px' }}>➕ إضافة تحليل جديد</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 4 }}>اسم التحليل *</label>
+                        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                            style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 4 }}>القسم</label>
+                        <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                            style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
+                            <option value="cbc">CBC</option>
+                            <option value="chemistry">Chemistry</option>
+                            <option value="tumor_markers">Tumor Markers</option>
+                            <option value="coagulation">Coagulation</option>
+                            <option value="liver_function">Liver Function</option>
+                            <option value="kidney_function">Kidney Function</option>
+                            <option value="lipid">Lipid</option>
+                            <option value="thyroid">Thyroid</option>
+                            <option value="electrolytes">Electrolytes</option>
+                            <option value="urinalysis">Urinalysis</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 4 }}>الوحدة</label>
+                            <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} placeholder="mg/dL"
+                                style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 4 }}>المعدل الطبيعي</label>
+                            <input value={form.reference_range} onChange={e => setForm(f => ({ ...f, reference_range: e.target.value }))} placeholder="0-100"
+                                style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
+                        </div>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                    <button onClick={onClose} style={{ padding: '7px 14px', borderRadius: 7, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
+                    <button onClick={() => onAdd(form)} style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>إضافة</button>
                 </div>
             </div>
         </div>
