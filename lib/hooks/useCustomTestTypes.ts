@@ -11,7 +11,7 @@ export interface CustomTestType {
     reference_range: string | null
 }
 
-export function useCustomTestTypes(kind: 'lab' | 'imaging') {
+export function useCustomTestTypes(kind: 'lab' | 'imaging' | 'primary_site' | 'histology') {
     const [customTypes, setCustomTypes] = useState<CustomTestType[]>([])
     const [loading, setLoading] = useState(true)
     const supabase = createClient()

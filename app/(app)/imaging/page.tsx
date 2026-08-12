@@ -202,13 +202,14 @@ export default function ImagingPage() {
     )
 }
 
-function NewImagingModal({ patients, saving, onClose, onSave }: any) {
+function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, presetPatientName }: any) {
     const { customTypes, addCustomType } = useCustomTestTypes('imaging')
     const [form, setForm] = useState({
-        patient_id: '', imaging_type: '', custom_type_name: '',
+        patient_id: presetPatientId || '', imaging_type: '', custom_type_name: '',
         body_region: '', study_date: new Date().toISOString().split('T')[0],
         is_baseline: false, notes: '',
     })
+    // ... باقي الـ state زي ما هو
     const [searchQuery, setSearchQuery] = useState('')
     const [showAddNew, setShowAddNew] = useState(false)
     const [newTypeName, setNewTypeName] = useState('')
@@ -271,16 +272,25 @@ function NewImagingModal({ patients, saving, onClose, onSave }: any) {
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {error && <div style={{ background: '#fde8e8', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#e53e3e' }}>{error}</div>}
 
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض *</label>
-                        <select value={form.patient_id} onChange={e => setForm((f: any) => ({ ...f, patient_id: e.target.value }))}
-                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                            <option value="">— اختر المريض —</option>
-                            {patients.map((p: any) => (
-                                <option key={p.id} value={p.id}>{p.first_name_ar} {p.last_name_ar} · {p.mrn}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {presetPatientId ? (
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض</label>
+                            <div style={{ padding: '8px 11px', border: '1.5px solid #e6f7f4', background: '#f0fdf4', borderRadius: 7, fontSize: 12, color: '#1a8a78', fontWeight: 700 }}>
+                                ✓ {presetPatientName}
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض *</label>
+                            <select value={form.patient_id} onChange={e => setForm((f: any) => ({ ...f, patient_id: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
+                                <option value="">— اختر المريض —</option>
+                                {patients.map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.first_name_ar} {p.last_name_ar} · {p.mrn}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div style={{ position: 'relative' }}>
                         <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ابحث عن نوع الأشعة *</label>

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useMedicalRecord } from '@/lib/hooks/useMedicalRecord'
 import { VitalSignsPanel } from '@/components/patients/VitalSignsPanel'
 import { ProgressNotesPanel } from '@/components/patients/ProgressNotesPanel'
+import { QuickMedicalActions } from '@/components/patients/QuickMedicalActions'
 
 function bmiCategory(bmi: number | null): { label: string; color: string } | null {
   if (bmi === null) return null
@@ -313,7 +314,7 @@ export default function PatientProfilePage() {
 
         {/* MEDICAL TAB */}
         {activeTab === 'medical' && (
-          <MedicalTabContent patientId={id as string} />
+          <MedicalTabContent patientId={id as string} patientName={`${patient.first_name_ar} ${patient.last_name_ar}`} />
         )}
 
         {/* CONSENTS TAB */}
@@ -334,7 +335,7 @@ export default function PatientProfilePage() {
 // ────────────────────────────────────────────────────────────
 // MedicalTabContent
 // ────────────────────────────────────────────────────────────
-function MedicalTabContent({ patientId }: { patientId: string }) {
+function MedicalTabContent({ patientId, patientName }: { patientId: string; patientName: string }) {
   const { data, loading } = useMedicalRecord(patientId)
   const [pathologyTests, setPathologyTests] = useState<any[]>([])
   const [pathLoading, setPathLoading] = useState(true)
@@ -387,6 +388,11 @@ function MedicalTabContent({ patientId }: { patientId: string }) {
         background: 'linear-gradient(135deg, #0b1f3a, #1e4580)', borderRadius: 14,
         padding: '18px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
+        <QuickMedicalActions
+          patientId={patientId}
+          patientName={`${data.patient?.first_name_ar ?? ''} ${data.patient?.last_name_ar ?? ''}`}
+          onDataChanged={() => { /* ممكن تنادي refresh لو حابب تحدث البيانات فورًا */ }}
+        />
         <div>
           <p style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: 0 }}>التقرير الطبي الكامل</p>
           <p style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', margin: '4px 0 0' }}>

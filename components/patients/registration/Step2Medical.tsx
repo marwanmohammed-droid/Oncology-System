@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
 import { PRIMARY_SITES, HISTOLOGY_TYPES } from '@/lib/constants/medicalLists'
+import { SearchableSelect } from '@/components/shared/SearchableSelect'
+import { useCustomTestTypes } from '@/lib/hooks/useCustomTestTypes'
 
 const schema = z.object({
   diagnosis: z.object({
@@ -38,7 +40,6 @@ const schema = z.object({
     smoking_status: z.enum(['never', 'cigarettes', 'other', 'former']).optional(),
     cigarettes_pack_per_day: z.string().optional().or(z.literal('')),
     cigarettes_duration_years: z.string().optional().or(z.literal('')),
-    past_history: z.string().optional().or(z.literal('')),
     other_habit_details: z.string().optional().or(z.literal('')),
     menstrual_status: z.enum(['menstrual', 'postmenopausal']).optional(),
     vitals: z.object({
@@ -63,7 +64,7 @@ type PathologyTest = { id: string; test_name: string; modality: string; result_n
 type PriorProtocol = { id: string; protocol_name: string; num_cycles: string; duration_months: string; notes: string }
 type OncologyFHEntry = { id: string; person: string; type: string }
 
-const COMORBIDITIES = ['DM Type 1', 'DM Type 2', 'HTN', 'IHD / CAD', 'CKD', 'Hepatic disease', 'Autoimmune', 'Neuropathy', 'Previous malignancy']
+const COMORBIDITIES = ['DM Type 2', 'HTN', 'IHD / CAD', 'CKD', 'Hepatic disease', 'Autoimmune', 'Neuropathy', 'Previous malignancy']
 const FAMILY_HISTORY_CONDITIONS = ['DM1', 'DM2', 'HTN', 'Cardiac Disease', 'Autoimmune Disease', 'Other']
 const ONGOING_MEDICATIONS = [
   'Anti-coagulants', 'Anti-platelets', 'Anti-HTN', 'Anti-diabetics (Oral)', 'Insulin',
@@ -100,7 +101,13 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
   const [priorProtocols, setPriorProtocols] = useState<PriorProtocol[]>([])
   const [oncologyFhEntries, setOncologyFhEntries] = useState<OncologyFHEntry[]>([])
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+  const { customTypes: customSites, addCustomType: addCustomSite } = useCustomTestTypes('primary_site')
+  const { customTypes: customHistologies, addCustomType: addCustomHistology } = useCustomTestTypes('histology')
+
+  const allPrimarySites = [...PRIMARY_SITES, ...customSites.map(t => t.name)]
+  const allHistologyTypes = [...HISTOLOGY_TYPES, ...customHistologies.map(t => t.name)]
+
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       diagnosis: { confirmed_cancer_patient: 'no', double_primary: 'no', metastasis_flag: 'no', sample_type: 'tissue' },
@@ -266,17 +273,25 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="field-label-en">Primary site</label>
-                <select {...register('diagnosis.primary_site')} className="input-en-full">
-                  <option value="">— Select site —</option>
-                  {PRIMARY_SITES.map(s => <option key={s}>{s}</option>)}
-                </select>
+                <SearchableSelect
+                  value={watch('diagnosis.primary_site') || ''}
+                  onChange={v => setValue('diagnosis.primary_site', v)}
+                  options={allPrimarySites}
+                  placeholder="Search or select primary site..."
+                  addNewLabel="Add new site"
+                  onAddNew={async (name) => { await addCustomSite({ name }) }}
+                />
               </div>
               <div>
                 <label className="field-label-en">Histology</label>
-                <select {...register('diagnosis.histology')} className="input-en-full">
-                  <option value="">— Select —</option>
-                  {HISTOLOGY_TYPES.map(h => <option key={h}>{h}</option>)}
-                </select>
+                <SearchableSelect
+                  value={watch('diagnosis.histology') || ''}
+                  onChange={v => setValue('diagnosis.histology', v)}
+                  options={allHistologyTypes}
+                  placeholder="Search or select histology..."
+                  addNewLabel="Add new histology"
+                  onAddNew={async (name) => { await addCustomHistology({ name }) }}
+                />
               </div>
             </div>
           ) : (
@@ -284,27 +299,43 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
               <div className="border border-slate-200 rounded-lg p-3">
                 <p className="section-label-en">Primary Site 1</p>
                 <div className="space-y-2">
-                  <select {...register('diagnosis.primary_site')} className="input-en-full">
-                    <option value="">— Select site —</option>
-                    {PRIMARY_SITES.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                  <select {...register('diagnosis.histology')} className="input-en-full">
-                    <option value="">— Histology —</option>
-                    {HISTOLOGY_TYPES.map(h => <option key={h}>{h}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={watch('diagnosis.primary_site') || ''}
+                    onChange={v => setValue('diagnosis.primary_site', v)}
+                    options={allPrimarySites}
+                    placeholder="Search or select primary site..."
+                    addNewLabel="Add new site"
+                    onAddNew={async (name) => { await addCustomSite({ name }) }}
+                  />
+                  <SearchableSelect
+                    value={watch('diagnosis.histology') || ''}
+                    onChange={v => setValue('diagnosis.histology', v)}
+                    options={allHistologyTypes}
+                    placeholder="Search or select histology..."
+                    addNewLabel="Add new histology"
+                    onAddNew={async (name) => { await addCustomHistology({ name }) }}
+                  />
                 </div>
               </div>
               <div className="border border-slate-200 rounded-lg p-3">
                 <p className="section-label-en">Primary Site 2</p>
                 <div className="space-y-2">
-                  <select {...register('diagnosis.primary_site_2')} className="input-en-full">
-                    <option value="">— Select site —</option>
-                    {PRIMARY_SITES.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                  <select {...register('diagnosis.histology_2')} className="input-en-full">
-                    <option value="">— Histology —</option>
-                    {HISTOLOGY_TYPES.map(h => <option key={h}>{h}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={watch('diagnosis.primary_site_2') || ''}
+                    onChange={v => setValue('diagnosis.primary_site_2', v)}
+                    options={allPrimarySites}
+                    placeholder="Search or select primary site..."
+                    addNewLabel="Add new site"
+                    onAddNew={async (name) => { await addCustomSite({ name }) }}
+                  />
+                  <SearchableSelect
+                    value={watch('diagnosis.histology_2') || ''}
+                    onChange={v => setValue('diagnosis.histology_2', v)}
+                    options={allHistologyTypes}
+                    placeholder="Search or select histology..."
+                    addNewLabel="Add new histology"
+                    onAddNew={async (name) => { await addCustomHistology({ name }) }}
+                  />
                 </div>
               </div>
             </div>
@@ -331,7 +362,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
               <label className="field-label-en">Stage</label>
               <select {...register('diagnosis.stage')} className="input-en-full">
                 <option value="">—</option>
-                {['I', 'IA', 'IB', 'II', 'IIA', 'IIB', 'III', 'IIIA', 'IIIB', 'IIIC', 'IV'].map(s => <option key={s}>Stage {s}</option>)}
+                {['I', 'IA', 'IB', 'II', 'IIA', 'IIB', 'III', 'IIIA', 'IIIB', 'IIIC', 'IV'].map(s => <option key={s} value={`Stage ${s}`}>Stage {s}</option>)}
               </select>
             </div>
             <div>
@@ -500,7 +531,6 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <option value="never">Never</option>
                 <option value="cigarettes">Cigarettes</option>
                 <option value="former">Former smoker</option>
-                <option value="passive">Passive smoker</option>
                 <option value="other">Other</option>
               </select>
             </div>
@@ -509,8 +539,6 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <label className="field-label-en">Menstrual status</label>
                 <select {...register('history.menstrual_status')} className="input-en-full">
                   <option value="">—</option>
-                  <option value="1ry_amenorrhea">1ry amenorrhea</option>
-                  <option value="2ry_amenorrhea">2ry amenorrhea</option>
                   <option value="menstrual">Menstrual</option>
                   <option value="postmenopausal">Postmenopausal</option>
                 </select>
@@ -519,19 +547,6 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
           </div>
 
           {smokingStatus === 'cigarettes' && (
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="field-label-en">Packs / day</label>
-                <input type="number" step="0.1" {...register('history.cigarettes_pack_per_day')} placeholder="e.g. 1" className="input-en-full" />
-              </div>
-              <div>
-                <label className="field-label-en">Duration (years)</label>
-                <input type="number" {...register('history.cigarettes_duration_years')} placeholder="e.g. 15" className="input-en-full" />
-              </div>
-            </div>
-          )}
-
-          {smokingStatus === 'former' && (
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="field-label-en">Packs / day</label>
@@ -714,19 +729,17 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">Pallor</label>
               <select {...register('history.vitals.pallor')} className="input-en-full">
-                <option value="">-</option>
+                <option value="">—</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
-                <option value="N/A">N/A</option>
               </select>
             </div>
             <div>
               <label className="field-label-en">Jaundice</label>
               <select {...register('history.vitals.jaundice')} className="input-en-full">
-                <option value="">-</option>
+                <option value="">—</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
-                <option value="N/A">N/A</option>
               </select>
             </div>
           </div>
@@ -736,39 +749,29 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
             <div>
               <label className="field-label-en">HBV</label>
               <select {...register('history.vitals.hbv_status')} className="input-en-full">
-                <option value="">-</option>
+                <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
-                <option value="N/A">N/A</option>
               </select>
             </div>
             <div>
               <label className="field-label-en">HCV</label>
               <select {...register('history.vitals.hcv_status')} className="input-en-full">
-                <option value="">-</option>
+                <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
-                <option value="N/A">N/A</option>
               </select>
             </div>
             <div>
               <label className="field-label-en">HIV</label>
               <select {...register('history.vitals.hiv_status')} className="input-en-full">
-                <option value="">-</option>
+                <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
-                <option value="N/A">N/A</option>
               </select>
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <label className="field-label-en">Past History</label>
-        <textarea {...register('history.past_history')} rows={2}
-          placeholder="General past medical history / narrative summary..."
-          className="input-en-full" />
       </div>
 
       {/* ── ECOG ── */}

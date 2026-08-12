@@ -163,9 +163,10 @@ export default function LabResultsPage() {
 
 type PanelRowState = { include: boolean; result_value: string; result_text: string; is_abnormal: boolean; is_critical: boolean }
 
-function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
+function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, presetPatientName }: any) {
     const { customTypes, addCustomType } = useCustomTestTypes('lab')
-    const [patientId, setPatientId] = useState('')
+    const [patientId, setPatientId] = useState(presetPatientId || '')
+    // ... باقي الـ state زي ما هو
     const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0])
     const [panelKey, setPanelKey] = useState('')
     const [rows, setRows] = useState<Record<string, PanelRowState>>({})
@@ -294,16 +295,25 @@ function NewLabPanelModal({ patients, saving, onClose, onSave }: any) {
                     {error && <div style={{ background: '#fde8e8', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#e53e3e' }}>{error}</div>}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض *</label>
-                            <select value={patientId} onChange={e => setPatientId(e.target.value)}
-                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                                <option value="">— اختر المريض —</option>
-                                {patients.map((p: any) => (
-                                    <option key={p.id} value={p.id}>{p.first_name_ar} {p.last_name_ar} · {p.mrn}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {presetPatientId ? (
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض</label>
+                                <div style={{ padding: '8px 11px', border: '1.5px solid #e6f7f4', background: '#f0fdf4', borderRadius: 7, fontSize: 12, color: '#1a8a78', fontWeight: 700 }}>
+                                    ✓ {presetPatientName}
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض *</label>
+                                <select value={patientId} onChange={e => setPatientId(e.target.value)}
+                                    style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
+                                    <option value="">— اختر المريض —</option>
+                                    {patients.map((p: any) => (
+                                        <option key={p.id} value={p.id}>{p.first_name_ar} {p.last_name_ar} · {p.mrn}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ التحليل</label>
                             <input type="date" value={testDate} onChange={e => setTestDate(e.target.value)}
