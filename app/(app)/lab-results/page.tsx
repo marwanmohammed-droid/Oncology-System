@@ -162,18 +162,18 @@ export default function LabResultsPage() {
 }
 
 type PanelRowState = { include: boolean; result_value: string; result_text: string; is_abnormal: boolean; is_critical: boolean }
+type ActivePanel = { key: string; label: string; category: string; rows: Record<string, PanelRowState> }
 
 function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, presetPatientName }: any) {
     const { customTypes, addCustomType } = useCustomTestTypes('lab')
     const [patientId, setPatientId] = useState(presetPatientId || '')
-    // ... باقي الـ state زي ما هو
     const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0])
-    const [panelKey, setPanelKey] = useState('')
-    const [rows, setRows] = useState<Record<string, PanelRowState>>({})
+    const [panelKeyToAdd, setPanelKeyToAdd] = useState('')
+    const [activePanels, setActivePanels] = useState<ActivePanel[]>([])
     const [error, setError] = useState('')
     const [localSaving, setLocalSaving] = useState(false)
 
-    // ── وضع "بحث + إضافة تحليل مفرد" ──
+    // ── وضع "بحث + إضافة تحليل مفرد" (زي ما كان، شغال بجانب الـ panels) ──
     const [searchMode, setSearchMode] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedSingleTest, setSelectedSingleTest] = useState<{ name: string; category: string; unit?: string; referenceRange?: string } | null>(null)
@@ -181,90 +181,88 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
     const [newTestForm, setNewTestForm] = useState({ name: '', category: 'other', unit: '', reference_range: '' })
     const [singleResult, setSingleResult] = useState({ result_value: '', result_text: '', is_abnormal: false, is_critical: false })
 
-    const selectedPanel = LAB_PANELS.find(p => p.key === panelKey)
+    const availablePanelsToAdd = LAB_PANELS.filter(p => !activePanels.some(ap => ap.key === p.key))
 
-    // كل التحاليل المتاحة للبحث: من الـ panels الثابتة + المخصصة المحفوظة
     const allSearchableTests = [
         ...LAB_PANELS.flatMap(p => p.items.map(item => ({ name: item.name, category: p.category, unit: item.unit, referenceRange: item.referenceRange }))),
         ...customTypes.map(t => ({ name: t.name, category: t.category || 'other', unit: t.unit || undefined, referenceRange: t.reference_range || undefined })),
     ]
     const uniqueTests = Array.from(new Map(allSearchableTests.map(t => [t.name.toLowerCase(), t])).values())
-
     const searchResults = searchQuery.length > 0
         ? uniqueTests.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
         : []
 
-    function handlePanelSelect(key: string) {
-        setPanelKey(key)
+    // ── إضافة بانل جديد للقائمة النشطة ──
+    function handleAddPanel(key: string) {
+        if (!key) return
         const panel = LAB_PANELS.find(p => p.key === key)
-        if (!panel) { setRows({}); return }
-        const initialRows: Record<string, PanelRowState> = {}
+        if (!panel) return
+        const rows: Record<string, PanelRowState> = {}
         panel.items.forEach(item => {
-            initialRows[item.name] = { include: true, result_value: '', result_text: '', is_abnormal: false, is_critical: false }
+            rows[item.name] = { include: true, result_value: '', result_text: '', is_abnormal: false, is_critical: false }
         })
-        setRows(initialRows)
+        setActivePanels(prev => [...prev, { key: panel.key, label: panel.label, category: panel.category, rows }])
+        setPanelKeyToAdd('')
     }
 
-    function updateRow(itemName: string, field: keyof PanelRowState, value: any) {
-        setRows(prev => ({ ...prev, [itemName]: { ...prev[itemName], [field]: value } }))
+    function removePanel(key: string) {
+        setActivePanels(prev => prev.filter(p => p.key !== key))
+    }
+
+    function updatePanelRow(panelKey: string, itemName: string, field: keyof PanelRowState, value: any) {
+        setActivePanels(prev => prev.map(p =>
+            p.key === panelKey ? { ...p, rows: { ...p.rows, [itemName]: { ...p.rows[itemName], [field]: value } } } : p
+        ))
     }
 
     async function handleAddNewTest() {
         if (!newTestForm.name) { setError('يرجى كتابة اسم التحليل'); return }
         setError('')
-        const created = await addCustomType({
-            name: newTestForm.name,
-            category: newTestForm.category,
-            unit: newTestForm.unit,
-            reference_range: newTestForm.reference_range,
+        await addCustomType({
+            name: newTestForm.name, category: newTestForm.category,
+            unit: newTestForm.unit, reference_range: newTestForm.reference_range,
         })
         setSelectedSingleTest({
-            name: newTestForm.name,
-            category: newTestForm.category,
-            unit: newTestForm.unit || undefined,
-            referenceRange: newTestForm.reference_range || undefined,
+            name: newTestForm.name, category: newTestForm.category,
+            unit: newTestForm.unit || undefined, referenceRange: newTestForm.reference_range || undefined,
         })
         setSearchQuery(newTestForm.name)
         setShowAddNew(false)
         setNewTestForm({ name: '', category: 'other', unit: '', reference_range: '' })
     }
 
-    async function handleSubmitPanel() {
-        if (!patientId || !selectedPanel) { setError('يرجى اختيار المريض والقسم'); return }
-        const includedRows = selectedPanel.items.filter(item => rows[item.name]?.include)
-        if (includedRows.length === 0) { setError('يرجى اختيار تحليل واحد على الأقل'); return }
-        setError('')
-        setLocalSaving(true)
-        try {
-            const payload = includedRows.map(item => {
-                const rowState = rows[item.name]
-                return {
-                    patient_id: patientId,
-                    test_category: selectedPanel.category,
-                    test_name: item.name,
-                    result_value: rowState.result_value ? parseFloat(rowState.result_value) : null,
-                    result_text: rowState.result_text || null,
-                    unit: item.unit || null,
-                    reference_range: item.referenceRange || null,
-                    is_abnormal: rowState.is_abnormal,
-                    is_critical: rowState.is_critical,
-                    test_date: testDate,
+    // ── حفظ كل البانلات النشطة + التحليل المفرد (لو موجود) دفعة واحدة ──
+    async function handleSubmitAll() {
+        if (!patientId) { setError('يرجى اختيار المريض'); return }
+
+        const payload: any[] = []
+
+        // من كل البانلات النشطة
+        activePanels.forEach(activePanel => {
+            const panel = LAB_PANELS.find(p => p.key === activePanel.key)
+            if (!panel) return
+            panel.items.forEach(item => {
+                const row = activePanel.rows[item.name]
+                if (row?.include) {
+                    payload.push({
+                        patient_id: patientId,
+                        test_category: activePanel.category,
+                        test_name: item.name,
+                        result_value: row.result_value ? parseFloat(row.result_value) : null,
+                        result_text: row.result_text || null,
+                        unit: item.unit || null,
+                        reference_range: item.referenceRange || null,
+                        is_abnormal: row.is_abnormal,
+                        is_critical: row.is_critical,
+                        test_date: testDate,
+                    })
                 }
             })
-            await onSave(payload)
-        } catch (e: any) {
-            setError(e.message)
-        } finally {
-            setLocalSaving(false)
-        }
-    }
+        })
 
-    async function handleSubmitSingle() {
-        if (!patientId || !selectedSingleTest) { setError('يرجى اختيار المريض والتحليل'); return }
-        setError('')
-        setLocalSaving(true)
-        try {
-            await onSave([{
+        // التحليل المفرد لو موجود
+        if (selectedSingleTest) {
+            payload.push({
                 patient_id: patientId,
                 test_category: selectedSingleTest.category,
                 test_name: selectedSingleTest.name,
@@ -275,7 +273,18 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
                 is_abnormal: singleResult.is_abnormal,
                 is_critical: singleResult.is_critical,
                 test_date: testDate,
-            }])
+            })
+        }
+
+        if (payload.length === 0) {
+            setError('يرجى إضافة قسم تحليل واحد على الأقل أو تحليل مفرد')
+            return
+        }
+
+        setError('')
+        setLocalSaving(true)
+        try {
+            await onSave(payload)
         } catch (e: any) {
             setError(e.message)
         } finally {
@@ -283,12 +292,17 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
         }
     }
 
+    const totalTestsCount = activePanels.reduce((sum, p) => sum + Object.values(p.rows).filter(r => r.include).length, 0) + (selectedSingleTest ? 1 : 0)
+
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
             onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 18, width: 620, maxHeight: '88vh', overflowY: 'auto', direction: 'rtl', fontFamily: 'Cairo' }}>
-                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>🧪 إضافة نتائج تحليل</p>
+            <div style={{ background: '#fff', borderRadius: 18, width: 680, maxHeight: '90vh', overflowY: 'auto', direction: 'rtl', fontFamily: 'Cairo' }}>
+                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 5 }}>
+                    <div>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>🧪 إضافة نتائج تحليل</p>
+                        {presetPatientName && <p style={{ fontSize: 11, color: '#8e97b5', fontFamily: 'DM Mono', margin: '4px 0 0' }}>{presetPatientName}</p>}
+                    </div>
                     <button onClick={onClose} style={{ background: '#f7f8fc', border: '1px solid #dde2ee', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', fontSize: 14, color: '#8e97b5' }}>✕</button>
                 </div>
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -321,97 +335,110 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
                         </div>
                     </div>
 
-                    {/* Mode toggle */}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => setSearchMode(false)} style={{
-                            flex: 1, padding: '7px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                            background: !searchMode ? '#1a8a78' : '#f7f8fc', color: !searchMode ? '#fff' : '#4a5580', fontSize: 11, fontWeight: 600,
+                    {/* إضافة بانلات متعددة */}
+                    <div style={{ background: '#f7f8fc', borderRadius: 10, padding: 14 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: '#4a5580', margin: '0 0 8px' }}>
+                            📋 أضف أقسام تحاليل متعددة لنفس الزيارة
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <select value={panelKeyToAdd} onChange={e => handleAddPanel(e.target.value)}
+                                style={{ flex: 1, padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', background: '#fff' }}>
+                                <option value="">— اختر قسم تحليل لإضافته —</option>
+                                {availablePanelsToAdd.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                            </select>
+                        </div>
+                        {activePanels.length > 0 && (
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                                {activePanels.map(p => (
+                                    <span key={p.key} style={{
+                                        fontSize: 11, padding: '4px 10px', borderRadius: 20, background: '#e6f7f4',
+                                        color: '#1a8a78', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6,
+                                    }}>
+                                        {p.label}
+                                        <button onClick={() => removePanel(p.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53e3e', fontWeight: 700, padding: 0, lineHeight: 1 }}>✕</button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* عرض كل بانل نشط بالتفصيل */}
+                    {activePanels.map(activePanel => {
+                        const panel = LAB_PANELS.find(p => p.key === activePanel.key)
+                        if (!panel) return null
+                        return (
+                            <div key={activePanel.key} style={{ border: '1.5px solid #dde2ee', borderRadius: 10, overflow: 'hidden' }}>
+                                <div style={{ background: '#f0fdf4', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <p style={{ fontSize: 12, fontWeight: 700, color: '#1a8a78', margin: 0 }}>{panel.label}</p>
+                                    <button onClick={() => removePanel(activePanel.key)} style={{ fontSize: 10, color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer' }}>حذف القسم بالكامل</button>
+                                </div>
+                                <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {panel.items.map(item => {
+                                        const row = activePanel.rows[item.name]
+                                        if (!row) return null
+                                        return (
+                                            <div key={item.name} style={{ border: `1.5px solid ${row.include ? '#dde2ee' : '#f0f0f0'}`, borderRadius: 8, padding: '8px 10px', opacity: row.include ? 1 : .5 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: row.include ? 6 : 0 }}>
+                                                    <input type="checkbox" checked={row.include} onChange={e => updatePanelRow(activePanel.key, item.name, 'include', e.target.checked)} />
+                                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#0b1f3a', margin: 0, flex: 1 }}>{item.name}</p>
+                                                    {item.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono' }}>{item.referenceRange} {item.unit}</span>}
+                                                </div>
+                                                {row.include && (
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 6, alignItems: 'center' }}>
+                                                        <input type="number" step="0.01" value={row.result_value} onChange={e => updatePanelRow(activePanel.key, item.name, 'result_value', e.target.value)}
+                                                            placeholder="Numeric" style={{ padding: '5px 8px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
+                                                        <input value={row.result_text} onChange={e => updatePanelRow(activePanel.key, item.name, 'result_text', e.target.value)}
+                                                            placeholder="Text" style={{ padding: '5px 8px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#b45309', whiteSpace: 'nowrap' }}>
+                                                            <input type="checkbox" checked={row.is_abnormal} onChange={e => updatePanelRow(activePanel.key, item.name, 'is_abnormal', e.target.checked)} /> غير طبيعي
+                                                        </label>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#e53e3e', whiteSpace: 'nowrap' }}>
+                                                            <input type="checkbox" checked={row.is_critical} onChange={e => updatePanelRow(activePanel.key, item.name, 'is_critical', e.target.checked)} /> حرج
+                                                        </label>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )
+                    })}
+
+                    {/* بحث عن تحليل مفرد (اختياري، بجانب البانلات) */}
+                    <div>
+                        <button onClick={() => setSearchMode(!searchMode)} style={{
+                            fontSize: 11, color: '#1a8a78', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, padding: 0,
                         }}>
-                            اختيار قسم كامل (Panel)
-                        </button>
-                        <button onClick={() => setSearchMode(true)} style={{
-                            flex: 1, padding: '7px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                            background: searchMode ? '#1a8a78' : '#f7f8fc', color: searchMode ? '#fff' : '#4a5580', fontSize: 11, fontWeight: 600,
-                        }}>
-                            🔍 بحث عن تحليل واحد
+                            {searchMode ? '− إخفاء بحث التحليل المفرد' : '+ إضافة تحليل مفرد إضافي (بحث)'}
                         </button>
                     </div>
 
-                    {!searchMode ? (
-                        <>
-                            <div>
-                                <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>نوع التحليل (Panel) *</label>
-                                <select value={panelKey} onChange={e => handlePanelSelect(e.target.value)}
-                                    style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                                    <option value="">— اختر نوع التحليل —</option>
-                                    {LAB_PANELS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-                                </select>
-                            </div>
-
-                            {selectedPanel && (
-                                <div>
-                                    <p style={{ fontSize: 10, color: '#8e97b5', margin: '0 0 8px' }}>فُك تحديد أي بند لا تريد تسجيله.</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        {selectedPanel.items.map(item => {
-                                            const row = rows[item.name]
-                                            if (!row) return null
-                                            return (
-                                                <div key={item.name} style={{ border: `1.5px solid ${row.include ? '#dde2ee' : '#f0f0f0'}`, borderRadius: 8, padding: '10px 12px', opacity: row.include ? 1 : .5 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: row.include ? 8 : 0 }}>
-                                                        <input type="checkbox" checked={row.include} onChange={e => updateRow(item.name, 'include', e.target.checked)} />
-                                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: 0, flex: 1 }}>{item.name}</p>
-                                                        {item.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono' }}>{item.referenceRange} {item.unit}</span>}
-                                                    </div>
-                                                    {row.include && (
-                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
-                                                            <input type="number" step="0.01" value={row.result_value} onChange={e => updateRow(item.name, 'result_value', e.target.value)}
-                                                                placeholder="Numeric value" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
-                                                            <input value={row.result_text} onChange={e => updateRow(item.name, 'result_text', e.target.value)}
-                                                                placeholder="Text result" style={{ padding: '6px 9px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
-                                                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#b45309', whiteSpace: 'nowrap' }}>
-                                                                <input type="checkbox" checked={row.is_abnormal} onChange={e => updateRow(item.name, 'is_abnormal', e.target.checked)} /> غير طبيعي
-                                                            </label>
-                                                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#e53e3e', whiteSpace: 'nowrap' }}>
-                                                                <input type="checkbox" checked={row.is_critical} onChange={e => updateRow(item.name, 'is_critical', e.target.checked)} /> حرج
-                                                            </label>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
+                    {searchMode && (
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                value={searchQuery}
+                                onChange={e => { setSearchQuery(e.target.value); setSelectedSingleTest(null) }}
+                                placeholder="ابحث عن اسم تحليل..."
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }}
+                            />
+                            {searchQuery && !selectedSingleTest && (
+                                <div style={{ border: '1.5px solid #dde2ee', borderRadius: 8, marginTop: 4, maxHeight: 180, overflowY: 'auto', background: '#fff', position: 'absolute', width: '100%', zIndex: 10 }}>
+                                    {searchResults.map(t => (
+                                        <div key={t.name} onClick={() => { setSelectedSingleTest(t); setSearchQuery(t.name) }}
+                                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #eef0f6', fontSize: 12 }}>
+                                            <span style={{ fontWeight: 600, color: '#0b1f3a' }}>{t.name}</span>
+                                            {t.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', marginRight: 8, fontFamily: 'DM Mono' }}>{t.referenceRange} {t.unit}</span>}
+                                        </div>
+                                    ))}
+                                    <div onClick={() => { setShowAddNew(true); setNewTestForm(f => ({ ...f, name: searchQuery })) }}
+                                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: '#1a8a78', fontWeight: 700, background: '#f0fdf4' }}>
+                                        + إضافة "{searchQuery}" كتحليل جديد
                                     </div>
                                 </div>
                             )}
-                        </>
-                    ) : (
-                        <>
-                            <div style={{ position: 'relative' }}>
-                                <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ابحث عن اسم التحليل *</label>
-                                <input
-                                    value={searchQuery}
-                                    onChange={e => { setSearchQuery(e.target.value); setSelectedSingleTest(null) }}
-                                    placeholder="اكتب اسم التحليل..."
-                                    style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }}
-                                />
-                                {searchQuery && !selectedSingleTest && (
-                                    <div style={{ border: '1.5px solid #dde2ee', borderRadius: 8, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff' }}>
-                                        {searchResults.map(t => (
-                                            <div key={t.name} onClick={() => { setSelectedSingleTest(t); setSearchQuery(t.name) }}
-                                                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #eef0f6', fontSize: 12 }}>
-                                                <span style={{ fontWeight: 600, color: '#0b1f3a' }}>{t.name}</span>
-                                                {t.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', marginRight: 8, fontFamily: 'DM Mono' }}>{t.referenceRange} {t.unit}</span>}
-                                            </div>
-                                        ))}
-                                        <div onClick={() => { setShowAddNew(true); setNewTestForm(f => ({ ...f, name: searchQuery })) }}
-                                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: '#1a8a78', fontWeight: 700, background: '#f0fdf4' }}>
-                                            + إضافة "{searchQuery}" كتحليل جديد
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
                             {selectedSingleTest && (
-                                <div style={{ border: '1.5px solid #dde2ee', borderRadius: 8, padding: '10px 12px' }}>
+                                <div style={{ border: '1.5px solid #dde2ee', borderRadius: 8, padding: '10px 12px', marginTop: 8 }}>
                                     <p style={{ fontSize: 12, fontWeight: 700, color: '#0b1f3a', margin: '0 0 8px' }}>{selectedSingleTest.name}</p>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                                         <input type="number" step="0.01" value={singleResult.result_value} onChange={e => setSingleResult(f => ({ ...f, result_value: e.target.value }))}
@@ -429,28 +456,27 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
                                     </div>
                                 </div>
                             )}
-                        </>
+                        </div>
                     )}
                 </div>
-                <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
-                    <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
-                    <button
-                        onClick={searchMode ? handleSubmitSingle : handleSubmitPanel}
-                        disabled={saving || localSaving || (searchMode ? !selectedSingleTest : !selectedPanel)}
-                        style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: (saving || localSaving) ? .6 : 1 }}
-                    >
-                        {(saving || localSaving) ? 'جارٍ الحفظ...' : 'حفظ النتائج'}
-                    </button>
+                <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', bottom: 0, background: '#fff' }}>
+                    <span style={{ fontSize: 11, color: '#8e97b5' }}>{totalTestsCount > 0 ? `${totalTestsCount} تحليل سيتم حفظه` : ''}</span>
+                    <div style={{ display: 'flex', gap: 9 }}>
+                        <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
+                        <button onClick={handleSubmitAll} disabled={saving || localSaving || totalTestsCount === 0} style={{
+                            padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: (saving || localSaving || totalTestsCount === 0) ? .6 : 1,
+                        }}>
+                            {(saving || localSaving) ? 'جارٍ الحفظ...' : `حفظ كل النتائج (${totalTestsCount})`}
+                        </button>
+                    </div>
                 </div>
 
                 {showAddNew && (
                     <AddNewTestModal
                         initialName={searchQuery}
                         onClose={() => setShowAddNew(false)}
-                        onAdd={async (form: any) => {
-                            setNewTestForm(form)
-                            await handleAddNewTest()
-                        }}
+                        onAdd={async (form: any) => { setNewTestForm(form); await handleAddNewTest() }}
                     />
                 )}
             </div>
