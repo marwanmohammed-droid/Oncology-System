@@ -41,7 +41,7 @@ const schema = z.object({
     cigarettes_pack_per_day: z.string().optional().or(z.literal('')),
     cigarettes_duration_years: z.string().optional().or(z.literal('')),
     other_habit_details: z.string().optional().or(z.literal('')),
-    menstrual_status: z.enum(['menstrual', 'postmenopausal']).optional(),
+    menstrual_status: z.enum(['menstrual', 'postmenopausal', '1st_amenorrhea', '2nd_amenorrhea', 'irregular_menses']).optional(),
     vitals: z.object({
       temperature_c: z.string().optional().or(z.literal('')),
       bp_systolic: z.string().optional().or(z.literal('')),
@@ -52,9 +52,9 @@ const schema = z.object({
       pain_score: z.string().optional().or(z.literal('')),
       pallor: z.enum(['yes', 'no']).optional(),
       jaundice: z.enum(['yes', 'no']).optional(),
-      hbv_status: z.enum(['positive', 'negative']).optional(),
-      hcv_status: z.enum(['positive', 'negative']).optional(),
-      hiv_status: z.enum(['positive', 'negative']).optional(),
+      hbv_status: z.enum(['positive', 'negative', 'na']).optional(),
+      hcv_status: z.enum(['positive', 'negative', 'na']).optional(),
+      hiv_status: z.enum(['positive', 'negative', 'na']).optional(),
     }).optional(),
   }),
 })
@@ -752,6 +752,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
+                <option value="na">N/A</option>
               </select>
             </div>
             <div>
@@ -760,6 +761,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
+                <option value="na">N/A</option>
               </select>
             </div>
             <div>
@@ -768,37 +770,38 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <option value="">—</option>
                 <option value="positive">+ve</option>
                 <option value="negative">-ve</option>
+                <option value="na">N/A</option>
               </select>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── ECOG ── */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-icon navy">📊</span>
-          <div><p className="card-title">ECOG Performance Status</p><p className="card-subtitle">مؤشر الأداء الوظيفي</p></div>
-        </div>
-        <div className="card-body">
-          <div className="flex gap-2 flex-wrap">
-            {['0', '1', '2', '3', '4'].map(ps => (
-              <label key={ps} className="radio-opt-en">
-                <input type="radio" value={ps} {...register('history.ecog_ps')} />
-                <span className="rdot" />
-                PS {ps}
-              </label>
-            ))}
+          {/* ── ECOG ── */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-icon navy">📊</span>
+              <div><p className="card-title">ECOG Performance Status</p><p className="card-subtitle">مؤشر الأداء الوظيفي</p></div>
+            </div>
+            <div className="card-body">
+              <div className="flex gap-2 flex-wrap">
+                {['0', '1', '2', '3', '4'].map(ps => (
+                  <label key={ps} className="radio-opt-en">
+                    <input type="radio" value={ps} {...register('history.ecog_ps')} />
+                    <span className="rdot" />
+                    PS {ps}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-2">
+            <p className="text-xs text-slate-400 font-mono">All fields in English · No mandatory fields</p>
+            <button type="submit" disabled={saving} className="btn-primary">
+              {saving ? 'Saving...' : 'Save & Complete Registration'}
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            </button>
           </div>
         </div>
-      </div>
-
-      <div className="flex justify-between items-center pt-2">
-        <p className="text-xs text-slate-400 font-mono">All fields in English · No mandatory fields</p>
-        <button type="submit" disabled={saving} className="btn-primary">
-          {saving ? 'Saving...' : 'Save & Complete Registration'}
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
-        </button>
       </div>
     </form>
   )

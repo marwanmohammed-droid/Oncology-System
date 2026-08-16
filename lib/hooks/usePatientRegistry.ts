@@ -64,27 +64,20 @@ export function usePatientRegistry() {
     const getRegistry = useCallback(async (filters: RegistryFilters = {}): Promise<RegistryEntry[]> => {
         setLoading(true)
         try {
-            let diagQuery = supabase
-                .from('diagnoses')
-                .select('patient_id, primary_site, stage, histology, is_metastatic, metastatic_sites, created_at')
-                .order('created_at', { ascending: false })
+            // ── نبدأ من patients عشان محدش يختفي حتى لو معندوش تشخيص بعد ──
+            const { data: patients } = await supabase
+                .from('patients')
+                .select('id, mrn, first_name_ar, last_name_ar, date_of_birth, sex, nationality, created_at, archived_at')
+                .is('archived_at', null)
 
-            if (filters.primarySite) diagQuery = diagQuery.eq('primary_site', filters.primarySite)
-            if (filters.stage) diagQuery = diagQuery.eq('stage', filters.stage)
+            if (!patients?.length) { setLoading(false); return [] }
+            const patientIds = patients.map(p => p.id)
 
-            const { data: diagnoses } = await diagQuery
-            if (!diagnoses?.length) { setLoading(false); return [] }
-
-            const latestDiagByPatient: Record<string, any> = {}
-            diagnoses.forEach(d => {
-                if (!latestDiagByPatient[d.patient_id]) latestDiagByPatient[d.patient_id] = d
-            })
-            const patientIds = Object.keys(latestDiagByPatient)
-
-            const [{ data: patients }, { data: plans }, { data: histories }] = await Promise.all([
-                supabase.from('patients')
-                    .select('id, mrn, first_name_ar, last_name_ar, date_of_birth, sex, nationality, created_at, archived_at')
-                    .in('id', patientIds),
+            const [{ data: diagnoses }, { data: plans }, { data: histories }] = await Promise.all([
+                supabase.from('diagnoses')
+                    .select('patient_id, primary_site, stage, histology, is_metastatic, metastatic_sites, created_at')
+                    .in('patient_id', patientIds)
+                    .order('created_at', { ascending: false }),
                 supabase.from('treatment_plans')
                     .select('patient_id, protocol_name, status, completed_cycles, planned_cycles, regimen:chemo_regimens(regimen_class)')
                     .in('patient_id', patientIds)
@@ -93,6 +86,12 @@ export function usePatientRegistry() {
                     .select('patient_id, ecog_ps, smoking_status')
                     .in('patient_id', patientIds),
             ])
+
+            // آخر تشخيص لكل مريض (لو موجود)
+            const latestDiagByPatient: Record<string, any> = {}
+                ; (diagnoses || []).forEach(d => {
+                    if (!latestDiagByPatient[d.patient_id]) latestDiagByPatient[d.patient_id] = d
+                })
 
             const planByPatient: Record<string, any> = {}
                 ; (plans || []).forEach(p => {
@@ -103,38 +102,39 @@ export function usePatientRegistry() {
             const historyByPatient: Record<string, any> = {}
                 ; (histories || []).forEach(h => { historyByPatient[h.patient_id] = h })
 
-            let entries: RegistryEntry[] = (patients || [])
-                .filter(pt => !pt.archived_at)
-                .map(pt => {
-                    const diag = latestDiagByPatient[pt.id]
-                    const plan = planByPatient[pt.id]
-                    const hist = historyByPatient[pt.id]
-                    const age = Math.floor((Date.now() - new Date(pt.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+            let entries: RegistryEntry[] = patients.map(pt => {
+                const diag = latestDiagByPatient[pt.id] ?? null
+                const plan = planByPatient[pt.id]
+                const hist = historyByPatient[pt.id]
+                const age = Math.floor((Date.now() - new Date(pt.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
 
-                    return {
-                        patientId: pt.id,
-                        mrn: pt.mrn,
-                        patientName: `${pt.first_name_ar} ${pt.last_name_ar}`,
-                        age,
-                        ageGroup: getAgeGroup(age),
-                        sex: pt.sex === 'M' ? 'ذكر' : 'أنثى',
-                        nationality: pt.nationality ?? null,
-                        primarySite: diag?.primary_site ?? null,
-                        stage: diag?.stage ?? null,
-                        histology: diag?.histology ?? null,
-                        isMetastatic: !!diag?.is_metastatic,
-                        metastaticSites: diag?.metastatic_sites ?? null,
-                        activeProtocol: plan?.protocol_name ?? null,
-                        protocolClass: (plan?.regimen as any)?.regimen_class ?? null,
-                        planStatus: plan?.status ?? null,
-                        completedCycles: plan?.completed_cycles ?? null,
-                        plannedCycles: plan?.planned_cycles ?? null,
-                        ecogPs: hist?.ecog_ps ?? null,
-                        smokingStatus: hist?.smoking_status ?? null,
-                        registeredAt: pt.created_at,
-                    }
-                })
+                return {
+                    patientId: pt.id,
+                    mrn: pt.mrn,
+                    patientName: `${pt.first_name_ar} ${pt.last_name_ar}`,
+                    age,
+                    ageGroup: getAgeGroup(age),
+                    sex: pt.sex === 'M' ? 'ذكر' : 'أنثى',
+                    nationality: pt.nationality ?? null,
+                    primarySite: diag?.primary_site ?? null,
+                    stage: diag?.stage ?? null,
+                    histology: diag?.histology ?? null,
+                    isMetastatic: !!diag?.is_metastatic,
+                    metastaticSites: diag?.metastatic_sites ?? null,
+                    activeProtocol: plan?.protocol_name ?? null,
+                    protocolClass: (plan?.regimen as any)?.regimen_class ?? null,
+                    planStatus: plan?.status ?? null,
+                    completedCycles: plan?.completed_cycles ?? null,
+                    plannedCycles: plan?.planned_cycles ?? null,
+                    ecogPs: hist?.ecog_ps ?? null,
+                    smokingStatus: hist?.smoking_status ?? null,
+                    registeredAt: pt.created_at,
+                }
+            })
 
+            // فلاتر التشخيص بقت تُطبّق بعد التجميع مش قبله، عشان محدش يقصى من الأصل
+            if (filters.primarySite) entries = entries.filter(e => e.primarySite === filters.primarySite)
+            if (filters.stage) entries = entries.filter(e => e.stage === filters.stage)
             if (filters.protocolName) entries = entries.filter(e => e.activeProtocol === filters.protocolName)
             if (filters.planStatus) entries = entries.filter(e => e.planStatus === filters.planStatus)
             if (filters.sex) entries = entries.filter(e => e.sex === filters.sex)
