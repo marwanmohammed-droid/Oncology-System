@@ -212,6 +212,7 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
                                 <option value="">—</option>
                                 <option value="positive">+ve</option>
                                 <option value="negative">-ve</option>
+                                <option value="na">N/A</option>
                             </select>
                         </div>
                         <div>
@@ -220,6 +221,7 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
                                 <option value="">—</option>
                                 <option value="positive">+ve</option>
                                 <option value="negative">-ve</option>
+                                <option value="na">N/A</option>
                             </select>
                         </div>
                         <div>
@@ -228,6 +230,7 @@ function VitalSignsFormModal({ saving, onClose, onSave }: any) {
                                 <option value="">—</option>
                                 <option value="positive">+ve</option>
                                 <option value="negative">-ve</option>
+                                <option value="na">N/A</option>
                             </select>
                         </div>
                     </div>

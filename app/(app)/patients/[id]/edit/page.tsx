@@ -902,6 +902,9 @@ export default function EditPatientPage() {
                                             <option value="">—</option>
                                             <option value="menstrual">Menstrual</option>
                                             <option value="postmenopausal">Postmenopausal</option>
+                                            <option value="1st_amenorrhea">1st Amenorrhea</option>
+                                            <option value="2nd_amenorrhea">2nd Amenorrhea</option>
+                                            <option value="irregular_menses">Irregular Menses</option>
                                         </select>
                                     </div>
                                 )}
