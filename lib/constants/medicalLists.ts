@@ -18,67 +18,186 @@ export const COUNTRIES = [
 ]
 
 export const PRIMARY_SITES = [
-    'Breast', 'Lung', 'Colorectal', 'Colon', 'Rectal', 'Anal',
-    'Lymphoma (Hodgkin)', 'Lymphoma (Non-Hodgkin)',
-    'Leukemia (AML)', 'Leukemia (ALL)', 'Leukemia (CML)', 'Leukemia (CLL)',
-    'Liver (HCC)', 'Gallbladder', 'Bile Duct (Cholangiocarcinoma)',
-    'Cervix', 'Endometrium', 'Ovary', 'Vulva', 'Vagina', 'Fallopian Tube',
-    'Prostate', 'Testis', 'Penile', 'Bladder', 'Kidney (RCC)', 'Ureter', 'Urethra',
-    'Thyroid', 'Parathyroid', 'Adrenal',
-    'Brain (Glioma)', 'Brain (Meningioma)', 'Brain (Medulloblastoma)', 'Spinal Cord',
-    'Pancreas', 'Stomach', 'Esophagus', 'Small Intestine', 'GIST',
-    'Head & Neck', 'Nasopharynx', 'Oropharynx', 'Larynx', 'Oral Cavity', 'Salivary Gland',
-    'Melanoma (Skin)', 'Non-Melanoma Skin', 'Merkel Cell Carcinoma',
-    'Sarcoma (Soft Tissue)', 'Sarcoma (Bone/Osteosarcoma)', 'Ewing Sarcoma',
-    'Multiple Myeloma', 'Myelodysplastic Syndrome (MDS)', 'Myeloproliferative Neoplasm (MPN)',
-    'Neuroendocrine Tumor (NET)', 'Mesothelioma', 'Thymoma', 'Unknown Primary', 'Other',
+    // Breast
+    'Breast',
+    // Thoracic
+    'Lung', 'Pleura (Mesothelioma)', 'Thymus', 'Trachea',
+    // GI
+    'Esophagus', 'Stomach', 'Small Intestine', 'Colon', 'Rectal', 'Anal',
+    'Liver (HCC)', 'Gallbladder', 'Bile Duct (Cholangiocarcinoma)', 'Pancreas', 'Appendix',
+    // Genitourinary
+    'Kidney (RCC)', 'Renal Pelvis / Ureter', 'Bladder', 'Urethra',
+    'Prostate', 'Testis', 'Penile',
+    // Gynecologic
+    'Cervix', 'Endometrium', 'Ovary', 'Fallopian Tube', 'Vulva', 'Vagina', 'Gestational Trophoblastic',
+    // Head & Neck
+    'Oral Cavity', 'Oropharynx', 'Nasopharynx', 'Hypopharynx', 'Larynx',
+    'Salivary Gland', 'Nasal Cavity / Paranasal Sinus', 'Thyroid', 'Parathyroid',
+    // Skin
+    'Melanoma (Skin)', 'Non-Melanoma Skin (BCC/SCC)', 'Merkel Cell Carcinoma',
+    // CNS
+    'Brain (Glioma)', 'Brain (Meningioma)', 'Brain (Medulloblastoma)', 'Brain (Other)',
+    'Spinal Cord', 'Pituitary',
+    // Bone & Soft Tissue
+    'Bone (Osteosarcoma)', 'Bone (Ewing Sarcoma)', 'Bone (Chondrosarcoma)', 'Soft Tissue Sarcoma',
+    // Hematologic
+    'Lymphoma (Hodgkin)', 'Lymphoma (Non-Hodgkin — B-cell)', 'Lymphoma (Non-Hodgkin — T-cell)',
+    'Leukemia (AML)', 'Leukemia (ALL)', 'Leukemia (CML)', 'Leukemia (CLL)', 'Leukemia (Hairy Cell)',
+    'Multiple Myeloma / Plasmacytoma', 'Myelodysplastic Syndrome (MDS)', 'Myeloproliferative Neoplasm (MPN)',
+    // Endocrine / NET
+    'Adrenal', 'Neuroendocrine Tumor (GI)', 'Neuroendocrine Tumor (Pancreatic)', 'Neuroendocrine Tumor (Lung/Bronchial)',
+    'Pheochromocytoma / Paraganglioma',
+    // Pediatric-specific
+    'Neuroblastoma', 'Wilms Tumor (Nephroblastoma)', 'Retinoblastoma', 'Hepatoblastoma', 'Rhabdomyosarcoma (site)',
+    // Other
+    'Eye (Ocular)', 'Unknown Primary', 'Other',
 ]
 
 export const HISTOLOGY_TYPES = [
-    // Carcinomas — general
+    // General carcinomas
     'Adenocarcinoma', 'Squamous cell carcinoma', 'Adenosquamous carcinoma',
     'Small cell carcinoma', 'Large cell carcinoma', 'Large cell neuroendocrine carcinoma',
     'Undifferentiated carcinoma', 'Anaplastic carcinoma', 'Sarcomatoid carcinoma',
+    'Basaloid carcinoma', 'Mixed carcinoma',
     // Breast
-    'Ductal carcinoma in situ (DCIS)', 'Invasive ductal carcinoma', 'Invasive lobular carcinoma',
+    'Ductal carcinoma in situ (DCIS)', 'Invasive ductal carcinoma (NST)', 'Invasive lobular carcinoma',
     'Mucinous (colloid) carcinoma', 'Tubular carcinoma', 'Medullary carcinoma (breast)',
-    'Papillary carcinoma (breast)', 'Inflammatory carcinoma',
-    // GI / Liver
-    'Signet ring cell carcinoma', 'Hepatocellular carcinoma', 'Cholangiocarcinoma',
+    'Papillary carcinoma (breast)', 'Inflammatory carcinoma', 'Metaplastic carcinoma (breast)',
+    'Paget disease of the breast', 'Phyllodes tumor',
+    // Lung
+    'Adenocarcinoma in situ (lung)', 'Bronchioloalveolar carcinoma', 'Carcinoid tumor (typical)', 'Carcinoid tumor (atypical)',
+    // GI / Hepatobiliary
+    'Signet ring cell carcinoma', 'Hepatocellular carcinoma', 'Fibrolamellar HCC', 'Cholangiocarcinoma',
     'Gastrointestinal stromal tumor (GIST)', 'Neuroendocrine tumor (well differentiated)',
-    'Neuroendocrine carcinoma (poorly differentiated)',
+    'Neuroendocrine carcinoma (poorly differentiated)', 'Mixed adenoneuroendocrine carcinoma (MANEC)',
+    'Acinar cell carcinoma (pancreas)', 'Pancreatoblastoma',
     // Genitourinary
     'Clear cell renal cell carcinoma', 'Papillary renal cell carcinoma', 'Chromophobe renal cell carcinoma',
-    'Transitional cell (urothelial) carcinoma', 'Seminoma', 'Non-seminomatous germ cell tumor',
-    'Embryonal carcinoma', 'Yolk sac tumor', 'Choriocarcinoma', 'Teratoma',
+    'Collecting duct carcinoma', 'Transitional cell (urothelial) carcinoma', 'Squamous cell carcinoma (bladder)',
+    'Seminoma', 'Non-seminomatous germ cell tumor', 'Embryonal carcinoma', 'Yolk sac tumor',
+    'Choriocarcinoma', 'Teratoma', 'Mixed germ cell tumor', 'Leydig cell tumor', 'Sertoli cell tumor',
+    'Acinar adenocarcinoma (prostate)', 'Ductal adenocarcinoma (prostate)',
     // Gynecologic
     'Endometrioid carcinoma', 'Serous carcinoma', 'Clear cell carcinoma (gynecologic)',
-    'Mucinous carcinoma (ovarian)', 'Granulosa cell tumor', 'Sertoli-Leydig cell tumor',
+    'Mucinous carcinoma (ovarian)', 'Carcinosarcoma (gynecologic)', 'Granulosa cell tumor',
+    'Sertoli-Leydig cell tumor', 'Dysgerminoma', 'Leiomyosarcoma (uterine)', 'Endometrial stromal sarcoma',
+    'Hydatidiform mole', 'Placental site trophoblastic tumor',
     // Thyroid
     'Papillary thyroid carcinoma', 'Follicular thyroid carcinoma', 'Medullary thyroid carcinoma',
-    'Anaplastic thyroid carcinoma',
+    'Anaplastic thyroid carcinoma', 'Hurthle cell carcinoma',
+    // Head & Neck
+    'Nasopharyngeal carcinoma (keratinizing)', 'Nasopharyngeal carcinoma (non-keratinizing)',
+    'Mucoepidermoid carcinoma', 'Adenoid cystic carcinoma', 'Acinic cell carcinoma',
+    'Pleomorphic adenoma (malignant transformation)', 'Verrucous carcinoma',
     // Lymphoma / Hematologic
     'Diffuse large B-cell lymphoma', 'Follicular lymphoma', 'Mantle cell lymphoma',
-    'Marginal zone lymphoma', 'Burkitt lymphoma', 'Hodgkin lymphoma (classical)',
-    'Hodgkin lymphoma (nodular lymphocyte predominant)', 'Peripheral T-cell lymphoma',
-    'Anaplastic large cell lymphoma', 'Mycosis fungoides',
+    'Marginal zone lymphoma', 'Burkitt lymphoma', 'Small lymphocytic lymphoma',
+    'Lymphoplasmacytic lymphoma (Waldenström)', 'Hodgkin lymphoma (classical, nodular sclerosis)',
+    'Hodgkin lymphoma (classical, mixed cellularity)', 'Hodgkin lymphoma (nodular lymphocyte predominant)',
+    'Peripheral T-cell lymphoma', 'Anaplastic large cell lymphoma', 'Angioimmunoblastic T-cell lymphoma',
+    'Mycosis fungoides', 'Sezary syndrome', 'Primary CNS lymphoma',
     'Acute myeloid leukemia', 'Acute promyelocytic leukemia', 'Acute lymphoblastic leukemia (B-cell)',
     'Acute lymphoblastic leukemia (T-cell)', 'Chronic myeloid leukemia', 'Chronic lymphocytic leukemia',
-    'Hairy cell leukemia', 'Multiple myeloma / Plasmacytoma',
+    'Hairy cell leukemia', 'Multiple myeloma', 'Plasmacytoma', 'MGUS',
     // Sarcomas
-    'Leiomyosarcoma', 'Liposarcoma', 'Rhabdomyosarcoma', 'Synovial sarcoma',
-    'Angiosarcoma', 'Fibrosarcoma', 'Osteosarcoma', 'Chondrosarcoma', 'Ewing sarcoma',
-    'Malignant peripheral nerve sheath tumor', 'Dermatofibrosarcoma protuberans',
+    'Leiomyosarcoma', 'Liposarcoma', 'Rhabdomyosarcoma (embryonal)', 'Rhabdomyosarcoma (alveolar)',
+    'Synovial sarcoma', 'Angiosarcoma', 'Kaposi sarcoma', 'Fibrosarcoma', 'Osteosarcoma',
+    'Chondrosarcoma', 'Ewing sarcoma', 'Malignant peripheral nerve sheath tumor',
+    'Dermatofibrosarcoma protuberans', 'Undifferentiated pleomorphic sarcoma', 'Epithelioid sarcoma',
+    'Alveolar soft part sarcoma',
     // Skin
     'Melanoma (superficial spreading)', 'Melanoma (nodular)', 'Melanoma (acral lentiginous)',
-    'Basal cell carcinoma', 'Merkel cell carcinoma',
+    'Melanoma (lentigo maligna)', 'Basal cell carcinoma', 'Squamous cell carcinoma (skin)',
+    'Merkel cell carcinoma', 'Cutaneous T-cell lymphoma',
     // CNS
-    'Glioblastoma', 'Astrocytoma', 'Oligodendroglioma', 'Ependymoma',
-    'Meningioma', 'Medulloblastoma', 'Craniopharyngioma', 'Schwannoma',
-    // Other
-    'Mesothelioma', 'Thymoma', 'Thymic carcinoma', 'Pheochromocytoma', 'Paraganglioma',
+    'Glioblastoma', 'Astrocytoma (diffuse)', 'Anaplastic astrocytoma', 'Pilocytic astrocytoma',
+    'Oligodendroglioma', 'Ependymoma', 'Meningioma (benign)', 'Meningioma (atypical/malignant)',
+    'Medulloblastoma', 'Craniopharyngioma', 'Schwannoma', 'Pituitary adenoma', 'Pineoblastoma',
+    'Choroid plexus carcinoma', 'DIPG (diffuse intrinsic pontine glioma)',
+    // Pediatric
+    'Neuroblastoma', 'Ganglioneuroblastoma', 'Nephroblastoma (Wilms tumor)', 'Clear cell sarcoma of the kidney',
+    'Rhabdoid tumor', 'Retinoblastoma', 'Hepatoblastoma', 'Pancreatoblastoma',
+    // Endocrine / NET / Other
+    'Pheochromocytoma', 'Paraganglioma', 'Adrenocortical carcinoma',
+    'Mesothelioma (epithelioid)', 'Mesothelioma (sarcomatoid)', 'Mesothelioma (biphasic)',
+    'Thymoma', 'Thymic carcinoma', 'Uveal melanoma', 'Conjunctival melanoma',
     'Other',
 ]
+
+// خريطة: كل عضو (Primary Site) مرتبط بقايمة Histology خاصة بيه
+// أي عضو مش موجود هنا هيستخدم القايمة الكاملة تلقائيًا كـ fallback
+export const PRIMARY_SITE_HISTOLOGY_MAP: Record<string, string[]> = {
+    'Breast': [
+        'Ductal carcinoma in situ (DCIS)', 'Invasive ductal carcinoma (NST)', 'Invasive lobular carcinoma',
+        'Mucinous (colloid) carcinoma', 'Tubular carcinoma', 'Medullary carcinoma (breast)',
+        'Papillary carcinoma (breast)', 'Inflammatory carcinoma', 'Metaplastic carcinoma (breast)',
+        'Paget disease of the breast', 'Phyllodes tumor', 'Adenocarcinoma',
+    ],
+    'Lung': [
+        'Adenocarcinoma', 'Adenocarcinoma in situ (lung)', 'Bronchioloalveolar carcinoma',
+        'Squamous cell carcinoma', 'Small cell carcinoma', 'Large cell carcinoma',
+        'Large cell neuroendocrine carcinoma', 'Carcinoid tumor (typical)', 'Carcinoid tumor (atypical)',
+        'Adenosquamous carcinoma', 'Sarcomatoid carcinoma',
+    ],
+    'Colon': ['Adenocarcinoma', 'Signet ring cell carcinoma', 'Mucinous carcinoma (ovarian)', 'Neuroendocrine tumor (well differentiated)', 'GIST'],
+    'Rectal': ['Adenocarcinoma', 'Signet ring cell carcinoma', 'Squamous cell carcinoma'],
+    'Anal': ['Squamous cell carcinoma', 'Adenocarcinoma', 'Melanoma (nodular)'],
+    'Stomach': ['Adenocarcinoma', 'Signet ring cell carcinoma', 'GIST', 'Neuroendocrine tumor (well differentiated)', 'Lymphoma (Non-Hodgkin — B-cell)'],
+    'Esophagus': ['Squamous cell carcinoma', 'Adenocarcinoma'],
+    'Liver (HCC)': ['Hepatocellular carcinoma', 'Fibrolamellar HCC', 'Cholangiocarcinoma', 'Angiosarcoma', 'Hepatoblastoma'],
+    'Gallbladder': ['Adenocarcinoma', 'Squamous cell carcinoma'],
+    'Bile Duct (Cholangiocarcinoma)': ['Cholangiocarcinoma', 'Adenocarcinoma'],
+    'Pancreas': ['Adenocarcinoma', 'Acinar cell carcinoma (pancreas)', 'Neuroendocrine tumor (well differentiated)', 'Mixed adenoneuroendocrine carcinoma (MANEC)', 'Pancreatoblastoma'],
+    'Small Intestine': ['Adenocarcinoma', 'GIST', 'Neuroendocrine tumor (well differentiated)', 'Lymphoma (Non-Hodgkin — B-cell)'],
+    'Kidney (RCC)': ['Clear cell renal cell carcinoma', 'Papillary renal cell carcinoma', 'Chromophobe renal cell carcinoma', 'Collecting duct carcinoma', 'Rhabdoid tumor'],
+    'Bladder': ['Transitional cell (urothelial) carcinoma', 'Squamous cell carcinoma (bladder)', 'Adenocarcinoma', 'Small cell carcinoma'],
+    'Prostate': ['Acinar adenocarcinoma (prostate)', 'Ductal adenocarcinoma (prostate)', 'Small cell carcinoma'],
+    'Testis': ['Seminoma', 'Non-seminomatous germ cell tumor', 'Embryonal carcinoma', 'Yolk sac tumor', 'Choriocarcinoma', 'Teratoma', 'Mixed germ cell tumor', 'Leydig cell tumor', 'Sertoli cell tumor'],
+    'Cervix': ['Squamous cell carcinoma', 'Adenocarcinoma', 'Adenosquamous carcinoma', 'Small cell carcinoma'],
+    'Endometrium': ['Endometrioid carcinoma', 'Serous carcinoma', 'Clear cell carcinoma (gynecologic)', 'Carcinosarcoma (gynecologic)', 'Leiomyosarcoma (uterine)', 'Endometrial stromal sarcoma'],
+    'Ovary': ['Serous carcinoma', 'Mucinous carcinoma (ovarian)', 'Endometrioid carcinoma', 'Clear cell carcinoma (gynecologic)', 'Granulosa cell tumor', 'Sertoli-Leydig cell tumor', 'Dysgerminoma', 'Teratoma'],
+    'Gestational Trophoblastic': ['Hydatidiform mole', 'Choriocarcinoma', 'Placental site trophoblastic tumor'],
+    'Thyroid': ['Papillary thyroid carcinoma', 'Follicular thyroid carcinoma', 'Medullary thyroid carcinoma', 'Anaplastic thyroid carcinoma', 'Hurthle cell carcinoma'],
+    'Nasopharynx': ['Nasopharyngeal carcinoma (keratinizing)', 'Nasopharyngeal carcinoma (non-keratinizing)', 'Lymphoma (Non-Hodgkin — B-cell)'],
+    'Salivary Gland': ['Mucoepidermoid carcinoma', 'Adenoid cystic carcinoma', 'Acinic cell carcinoma', 'Pleomorphic adenoma (malignant transformation)'],
+    'Oral Cavity': ['Squamous cell carcinoma', 'Verrucous carcinoma'],
+    'Oropharynx': ['Squamous cell carcinoma'],
+    'Larynx': ['Squamous cell carcinoma', 'Verrucous carcinoma'],
+    'Melanoma (Skin)': ['Melanoma (superficial spreading)', 'Melanoma (nodular)', 'Melanoma (acral lentiginous)', 'Melanoma (lentigo maligna)'],
+    'Non-Melanoma Skin (BCC/SCC)': ['Basal cell carcinoma', 'Squamous cell carcinoma (skin)'],
+    'Merkel Cell Carcinoma': ['Merkel cell carcinoma'],
+    'Brain (Glioma)': ['Glioblastoma', 'Astrocytoma (diffuse)', 'Anaplastic astrocytoma', 'Pilocytic astrocytoma', 'Oligodendroglioma', 'DIPG (diffuse intrinsic pontine glioma)'],
+    'Brain (Meningioma)': ['Meningioma (benign)', 'Meningioma (atypical/malignant)'],
+    'Brain (Medulloblastoma)': ['Medulloblastoma'],
+    'Brain (Other)': ['Ependymoma', 'Craniopharyngioma', 'Schwannoma', 'Choroid plexus carcinoma', 'Pineoblastoma'],
+    'Pituitary': ['Pituitary adenoma'],
+    'Bone (Osteosarcoma)': ['Osteosarcoma'],
+    'Bone (Ewing Sarcoma)': ['Ewing sarcoma'],
+    'Bone (Chondrosarcoma)': ['Chondrosarcoma'],
+    'Soft Tissue Sarcoma': ['Leiomyosarcoma', 'Liposarcoma', 'Synovial sarcoma', 'Angiosarcoma', 'Kaposi sarcoma', 'Fibrosarcoma', 'Malignant peripheral nerve sheath tumor', 'Dermatofibrosarcoma protuberans', 'Undifferentiated pleomorphic sarcoma', 'Epithelioid sarcoma', 'Alveolar soft part sarcoma'],
+    'Rhabdomyosarcoma (site)': ['Rhabdomyosarcoma (embryonal)', 'Rhabdomyosarcoma (alveolar)'],
+    'Lymphoma (Hodgkin)': ['Hodgkin lymphoma (classical, nodular sclerosis)', 'Hodgkin lymphoma (classical, mixed cellularity)', 'Hodgkin lymphoma (nodular lymphocyte predominant)'],
+    'Lymphoma (Non-Hodgkin — B-cell)': ['Diffuse large B-cell lymphoma', 'Follicular lymphoma', 'Mantle cell lymphoma', 'Marginal zone lymphoma', 'Burkitt lymphoma', 'Small lymphocytic lymphoma', 'Lymphoplasmacytic lymphoma (Waldenström)', 'Primary CNS lymphoma'],
+    'Lymphoma (Non-Hodgkin — T-cell)': ['Peripheral T-cell lymphoma', 'Anaplastic large cell lymphoma', 'Angioimmunoblastic T-cell lymphoma', 'Mycosis fungoides', 'Sezary syndrome'],
+    'Leukemia (AML)': ['Acute myeloid leukemia', 'Acute promyelocytic leukemia'],
+    'Leukemia (ALL)': ['Acute lymphoblastic leukemia (B-cell)', 'Acute lymphoblastic leukemia (T-cell)'],
+    'Leukemia (CML)': ['Chronic myeloid leukemia'],
+    'Leukemia (CLL)': ['Chronic lymphocytic leukemia'],
+    'Leukemia (Hairy Cell)': ['Hairy cell leukemia'],
+    'Multiple Myeloma / Plasmacytoma': ['Multiple myeloma', 'Plasmacytoma', 'MGUS'],
+    'Adrenal': ['Pheochromocytoma', 'Adrenocortical carcinoma'],
+    'Neuroendocrine Tumor (GI)': ['Neuroendocrine tumor (well differentiated)', 'Neuroendocrine carcinoma (poorly differentiated)'],
+    'Neuroendocrine Tumor (Pancreatic)': ['Neuroendocrine tumor (well differentiated)', 'Neuroendocrine carcinoma (poorly differentiated)'],
+    'Neuroendocrine Tumor (Lung/Bronchial)': ['Carcinoid tumor (typical)', 'Carcinoid tumor (atypical)'],
+    'Pheochromocytoma / Paraganglioma': ['Pheochromocytoma', 'Paraganglioma'],
+    'Neuroblastoma': ['Neuroblastoma', 'Ganglioneuroblastoma'],
+    'Wilms Tumor (Nephroblastoma)': ['Nephroblastoma (Wilms tumor)', 'Clear cell sarcoma of the kidney', 'Rhabdoid tumor'],
+    'Retinoblastoma': ['Retinoblastoma'],
+    'Hepatoblastoma': ['Hepatoblastoma'],
+    'Pleura (Mesothelioma)': ['Mesothelioma (epithelioid)', 'Mesothelioma (sarcomatoid)', 'Mesothelioma (biphasic)'],
+    'Thymus': ['Thymoma', 'Thymic carcinoma'],
+    'Eye (Ocular)': ['Uveal melanoma', 'Conjunctival melanoma', 'Retinoblastoma'],
+}
 
 export const IMAGING_TYPES = [
     { key: 'xray', label: 'أشعة سينية (X-Ray)' },

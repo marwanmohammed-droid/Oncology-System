@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
-import { PRIMARY_SITES, HISTOLOGY_TYPES } from '@/lib/constants/medicalLists'
+import { PRIMARY_SITES, HISTOLOGY_TYPES, PRIMARY_SITE_HISTOLOGY_MAP } from '@/lib/constants/medicalLists'
 import { SearchableSelect } from '@/components/shared/SearchableSelect'
 import { useCustomTestTypes } from '@/lib/hooks/useCustomTestTypes'
 
@@ -114,6 +114,21 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
       history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none', smoking_status: 'never' },
     },
   })
+
+  const primarySite1 = watch('diagnosis.primary_site')
+  const primarySite2 = watch('diagnosis.primary_site_2')
+
+  function getHistologyOptionsFor(site: string | undefined): string[] {
+    if (!site || !PRIMARY_SITE_HISTOLOGY_MAP[site]) {
+      // لو العضو مش محدد أو مش موجود في الخريطة، استخدم القايمة الكاملة
+      return allHistologyTypes
+    }
+    // القايمة الخاصة بالعضو + أي أنواع مخصصة اتضافت يدويًا (تفضل متاحة دايمًا في البحث)
+    return Array.from(new Set([...PRIMARY_SITE_HISTOLOGY_MAP[site], ...customHistologies.map(t => t.name)]))
+  }
+
+  const histologyOptions1 = getHistologyOptionsFor(primarySite1)
+  const histologyOptions2 = getHistologyOptionsFor(primarySite2)
 
   const confirmedCancer = watch('diagnosis.confirmed_cancer_patient')
   const doublePrimary = watch('diagnosis.double_primary')
@@ -287,11 +302,16 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                 <SearchableSelect
                   value={watch('diagnosis.histology') || ''}
                   onChange={v => setValue('diagnosis.histology', v)}
-                  options={allHistologyTypes}
+                  options={histologyOptions1}
                   placeholder="Search or select histology..."
                   addNewLabel="Add new histology"
                   onAddNew={async (name) => { await addCustomHistology({ name }) }}
                 />
+                {primarySite1 && PRIMARY_SITE_HISTOLOGY_MAP[primarySite1] && (
+                  <p style={{ fontSize: 9, color: '#8e97b5', marginTop: 4 }}>
+                    عرض الأنواع الخاصة بـ {primarySite1} — أو ابحث لإضافة نوع آخر
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -310,7 +330,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                   <SearchableSelect
                     value={watch('diagnosis.histology') || ''}
                     onChange={v => setValue('diagnosis.histology', v)}
-                    options={allHistologyTypes}
+                    options={histologyOptions1}
                     placeholder="Search or select histology..."
                     addNewLabel="Add new histology"
                     onAddNew={async (name) => { await addCustomHistology({ name }) }}
@@ -331,7 +351,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
                   <SearchableSelect
                     value={watch('diagnosis.histology_2') || ''}
                     onChange={v => setValue('diagnosis.histology_2', v)}
-                    options={allHistologyTypes}
+                    options={histologyOptions2}
                     placeholder="Search or select histology..."
                     addNewLabel="Add new histology"
                     onAddNew={async (name) => { await addCustomHistology({ name }) }}
@@ -572,240 +592,240 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
       </div>
 
       {/* ── PAST MEDICAL HISTORY & ONGOING MEDICATIONS ── */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-icon navy">📋</span>
-            <div><p className="card-title">Past Medical History</p><p className="card-subtitle">التاريخ المرضي السابق</p></div>
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">📋</span>
+          <div><p className="card-title">Past Medical History</p><p className="card-subtitle">التاريخ المرضي السابق</p></div>
+        </div>
+        <div className="card-body">
+          <p className="section-label-en">Comorbidities</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {COMORBIDITIES.map(item => (
+              <button type="button" key={item} onClick={() => toggleComorbidity(item)}
+                className={`tag-pill ${selectedComorbidities.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
+                {item}
+              </button>
+            ))}
           </div>
-          <div className="card-body">
-            <p className="section-label-en">Comorbidities</p>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {COMORBIDITIES.map(item => (
-                <button type="button" key={item} onClick={() => toggleComorbidity(item)}
-                  className={`tag-pill ${selectedComorbidities.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
-                  {item}
-                </button>
-              ))}
-            </div>
 
-            <div className="space-y-3 mb-4">
+          <div className="space-y-3 mb-4">
+            <div>
+              <label className="field-label-en">Previous surgeries</label>
+              <textarea {...register('history.previous_surgeries')} rows={2}
+                placeholder="e.g. Left mastectomy 2021 — None if not applicable" className="input-en-full" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="field-label-en">Previous surgeries</label>
-                <textarea {...register('history.previous_surgeries')} rows={2}
-                  placeholder="e.g. Left mastectomy 2021 — None if not applicable" className="input-en-full" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="field-label-en">Previous chemotherapy</label>
-                  <select {...register('history.previous_chemo')} className="input-en-full">
-                    <option value="none">None</option>
-                    <option value="adjuvant">Yes — adjuvant</option>
-                    <option value="neoadjuvant">Yes — neoadjuvant</option>
-                    <option value="palliative">Yes — palliative</option>
-                    <option value="multiple_lines">Yes — multiple lines</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="field-label-en">Radiation history</label>
-                  <select {...register('history.previous_radiation')} className="input-en-full">
-                    <option value="none">None</option>
-                    <option value="same_site">Yes — same site</option>
-                    <option value="different_site">Yes — different site</option>
-                    <option value="wbrt">Yes — whole brain (WBRT)</option>
-                  </select>
-                </div>
+                <label className="field-label-en">Previous chemotherapy</label>
+                <select {...register('history.previous_chemo')} className="input-en-full">
+                  <option value="none">None</option>
+                  <option value="adjuvant">Yes — adjuvant</option>
+                  <option value="neoadjuvant">Yes — neoadjuvant</option>
+                  <option value="palliative">Yes — palliative</option>
+                  <option value="multiple_lines">Yes — multiple lines</option>
+                </select>
               </div>
               <div>
-                <label className="field-label-en">Known drug allergies</label>
-                <input {...register('history.drug_allergies')} placeholder="NKDA if none" className="input-en-full" />
+                <label className="field-label-en">Radiation history</label>
+                <select {...register('history.previous_radiation')} className="input-en-full">
+                  <option value="none">None</option>
+                  <option value="same_site">Yes — same site</option>
+                  <option value="different_site">Yes — different site</option>
+                  <option value="wbrt">Yes — whole brain (WBRT)</option>
+                </select>
               </div>
-            </div>
-
-            <p className="section-label-en">Ongoing Medications</p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {ONGOING_MEDICATIONS.map(item => (
-                <button type="button" key={item} onClick={() => toggleMedication(item)}
-                  className={`tag-pill ${selectedMedications.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
-                  {item}
-                </button>
-              ))}
             </div>
             <div>
-              <label className="field-label-en">Other medications (specify)</label>
-              <input {...register('history.ongoing_medications_other')} placeholder="Any other medications not listed above..." className="input-en-full" />
+              <label className="field-label-en">Known drug allergies</label>
+              <input {...register('history.drug_allergies')} placeholder="NKDA if none" className="input-en-full" />
             </div>
+          </div>
+
+          <p className="section-label-en">Ongoing Medications</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {ONGOING_MEDICATIONS.map(item => (
+              <button type="button" key={item} onClick={() => toggleMedication(item)}
+                className={`tag-pill ${selectedMedications.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <div>
+            <label className="field-label-en">Other medications (specify)</label>
+            <input {...register('history.ongoing_medications_other')} placeholder="Any other medications not listed above..." className="input-en-full" />
           </div>
         </div>
+      </div>
 
-        {/* ── FAMILY HISTORY ── */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-icon navy">👪</span>
-            <div><p className="card-title">Family History</p><p className="card-subtitle">التاريخ العائلي</p></div>
+      {/* ── FAMILY HISTORY ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">👪</span>
+          <div><p className="card-title">Family History</p><p className="card-subtitle">التاريخ العائلي</p></div>
+        </div>
+        <div className="card-body">
+          <p className="section-label-en">General Conditions</p>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {FAMILY_HISTORY_CONDITIONS.map(item => (
+              <button type="button" key={item} onClick={() => toggleFamilyCondition(item)}
+                className={`tag-pill ${selectedFamilyConditions.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
+                {item}
+              </button>
+            ))}
           </div>
-          <div className="card-body">
-            <p className="section-label-en">General Conditions</p>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {FAMILY_HISTORY_CONDITIONS.map(item => (
-                <button type="button" key={item} onClick={() => toggleFamilyCondition(item)}
-                  className={`tag-pill ${selectedFamilyConditions.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
-                  {item}
-                </button>
-              ))}
-            </div>
-            {selectedFamilyConditions.includes('Other') && (
-              <input value={familyHistoryOther} onChange={e => setFamilyHistoryOther(e.target.value)}
-                placeholder="Specify other family history..." className="input-en-full mb-4" />
-            )}
+          {selectedFamilyConditions.includes('Other') && (
+            <input value={familyHistoryOther} onChange={e => setFamilyHistoryOther(e.target.value)}
+              placeholder="Specify other family history..." className="input-en-full mb-4" />
+          )}
 
-            <div className="flex justify-between items-center mb-2 mt-4">
-              <p className="section-label-en m-0">Oncology Family History</p>
-              <button type="button" onClick={addOncologyFH} className="tag-pill tag-pill-on">+ Add family member</button>
-            </div>
-            {oncologyFhEntries.length === 0 && <p className="text-xs text-slate-400 mb-2">No oncology family history added</p>}
-            <div className="space-y-2">
-              {oncologyFhEntries.map(entry => (
-                <div key={entry.id} className="grid grid-cols-5 gap-2 items-center border border-slate-200 rounded-lg p-2">
+          <div className="flex justify-between items-center mb-2 mt-4">
+            <p className="section-label-en m-0">Oncology Family History</p>
+            <button type="button" onClick={addOncologyFH} className="tag-pill tag-pill-on">+ Add family member</button>
+          </div>
+          {oncologyFhEntries.length === 0 && <p className="text-xs text-slate-400 mb-2">No oncology family history added</p>}
+          <div className="space-y-2">
+            {oncologyFhEntries.map(entry => (
+              <div key={entry.id} className="grid grid-cols-5 gap-2 items-center border border-slate-200 rounded-lg p-2">
+                <input
+                  value={entry.person}
+                  onChange={e => updateOncologyFH(entry.id, 'person', e.target.value)}
+                  placeholder="Which person (e.g. Mother, Uncle)"
+                  className="input-en-full col-span-2"
+                />
+                {entry.person && (
                   <input
-                    value={entry.person}
-                    onChange={e => updateOncologyFH(entry.id, 'person', e.target.value)}
-                    placeholder="Which person (e.g. Mother, Uncle)"
+                    value={entry.type}
+                    onChange={e => updateOncologyFH(entry.id, 'type', e.target.value)}
+                    placeholder="Type of cancer"
                     className="input-en-full col-span-2"
                   />
-                  {entry.person && (
-                    <input
-                      value={entry.type}
-                      onChange={e => updateOncologyFH(entry.id, 'type', e.target.value)}
-                      placeholder="Type of cancer"
-                      className="input-en-full col-span-2"
-                    />
-                  )}
-                  <button type="button" onClick={() => removeOncologyFH(entry.id)} className="text-red-500 text-xs px-2">✕</button>
-                </div>
-              ))}
-            </div>
+                )}
+                <button type="button" onClick={() => removeOncologyFH(entry.id)} className="text-red-500 text-xs px-2">✕</button>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* ── VITAL SIGNS ── */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-icon red">❤️</span>
-            <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
+      {/* ── VITAL SIGNS ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon red">❤️</span>
+          <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-4 gap-3 mb-3">
+            <div>
+              <label className="field-label-en">Temperature (°C)</label>
+              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Systolic</label>
+              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Diastolic</label>
+              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">Pulse (bpm)</label>
+              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
+            </div>
           </div>
-          <div className="card-body">
-            <div className="grid grid-cols-4 gap-3 mb-3">
-              <div>
-                <label className="field-label-en">Temperature (°C)</label>
-                <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
-              </div>
-              <div>
-                <label className="field-label-en">BP Systolic</label>
-                <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
-              </div>
-              <div>
-                <label className="field-label-en">BP Diastolic</label>
-                <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
-              </div>
-              <div>
-                <label className="field-label-en">Pulse (bpm)</label>
-                <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
-              </div>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div>
+              <label className="field-label-en">Respiratory Rate</label>
+              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
             </div>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div>
-                <label className="field-label-en">Respiratory Rate</label>
-                <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
-              </div>
-              <div>
-                <label className="field-label-en">SpO2 (%)</label>
-                <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
-              </div>
-              <div>
-                <label className="field-label-en">Pain Score (0-10)</label>
-                <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
-              </div>
+            <div>
+              <label className="field-label-en">SpO2 (%)</label>
+              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
             </div>
+            <div>
+              <label className="field-label-en">Pain Score (0-10)</label>
+              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
+            </div>
+          </div>
 
-            <p className="section-label-en">Physical Examination</p>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div>
-                <label className="field-label-en">Pallor</label>
-                <select {...register('history.vitals.pallor')} className="input-en-full">
-                  <option value="">—</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="field-label-en">Jaundice</label>
-                <select {...register('history.vitals.jaundice')} className="input-en-full">
-                  <option value="">—</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </div>
+          <p className="section-label-en">Physical Examination</p>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="field-label-en">Pallor</label>
+              <select {...register('history.vitals.pallor')} className="input-en-full">
+                <option value="">—</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
             </div>
+            <div>
+              <label className="field-label-en">Jaundice</label>
+              <select {...register('history.vitals.jaundice')} className="input-en-full">
+                <option value="">—</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
 
-            <p className="section-label-en">Virology</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="field-label-en">HBV</label>
-                <select {...register('history.vitals.hbv_status')} className="input-en-full">
-                  <option value="">—</option>
-                  <option value="positive">+ve</option>
-                  <option value="negative">-ve</option>
-                  <option value="na">N/A</option>
-                </select>
-              </div>
-              <div>
-                <label className="field-label-en">HCV</label>
-                <select {...register('history.vitals.hcv_status')} className="input-en-full">
-                  <option value="">—</option>
-                  <option value="positive">+ve</option>
-                  <option value="negative">-ve</option>
-                  <option value="na">N/A</option>
-                </select>
-              </div>
-              <div>
-                <label className="field-label-en">HIV</label>
-                <select {...register('history.vitals.hiv_status')} className="input-en-full">
-                  <option value="">—</option>
-                  <option value="positive">+ve</option>
-                  <option value="negative">-ve</option>
-                  <option value="na">N/A</option>
-                </select>
-              </div>
+          <p className="section-label-en">Virology</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="field-label-en">HBV</label>
+              <select {...register('history.vitals.hbv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+                <option value="na">N/A</option>
+              </select>
             </div>
+            <div>
+              <label className="field-label-en">HCV</label>
+              <select {...register('history.vitals.hcv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+                <option value="na">N/A</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">HIV</label>
+              <select {...register('history.vitals.hiv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+                <option value="na">N/A</option>
+              </select>
+            </div>
+          </div>
 
-            {/* ── ECOG ── */}
-            <div className="card">
-              <div className="card-header">
-                <span className="card-icon navy">📊</span>
-                <div><p className="card-title">ECOG Performance Status</p><p className="card-subtitle">مؤشر الأداء الوظيفي</p></div>
-              </div>
-              <div className="card-body">
-                <div className="flex gap-2 flex-wrap">
-                  {['0', '1', '2', '3', '4'].map(ps => (
-                    <label key={ps} className="radio-opt-en">
-                      <input type="radio" value={ps} {...register('history.ecog_ps')} />
-                      <span className="rdot" />
-                      PS {ps}
-                    </label>
-                  ))}
-                </div>
+          {/* ── ECOG ── */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-icon navy">📊</span>
+              <div><p className="card-title">ECOG Performance Status</p><p className="card-subtitle">مؤشر الأداء الوظيفي</p></div>
+            </div>
+            <div className="card-body">
+              <div className="flex gap-2 flex-wrap">
+                {['0', '1', '2', '3', '4'].map(ps => (
+                  <label key={ps} className="radio-opt-en">
+                    <input type="radio" value={ps} {...register('history.ecog_ps')} />
+                    <span className="rdot" />
+                    PS {ps}
+                  </label>
+                ))}
               </div>
             </div>
+          </div>
 
-            <div className="flex justify-between items-center pt-2">
-              <p className="text-xs text-slate-400 font-mono">All fields in English · No mandatory fields</p>
-              <button type="submit" disabled={saving} className="btn-primary">
-                {saving ? 'Saving...' : 'Save & Complete Registration'}
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
-              </button>
-            </div>
+          <div className="flex justify-between items-center pt-2">
+            <p className="text-xs text-slate-400 font-mono">All fields in English · No mandatory fields</p>
+            <button type="submit" disabled={saving} className="btn-primary">
+              {saving ? 'Saving...' : 'Save & Complete Registration'}
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            </button>
           </div>
         </div>
+      </div>
     </form>
   )
 }
