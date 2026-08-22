@@ -37,11 +37,6 @@ const schema = z.object({
     drug_allergies: z.string().optional().or(z.literal('')),
     ongoing_medications_other: z.string().optional().or(z.literal('')),
     ecog_ps: z.string().optional().or(z.literal('')),
-    smoking_status: z.enum(['never', 'cigarettes', 'other', 'former']).optional(),
-    cigarettes_pack_per_day: z.string().optional().or(z.literal('')),
-    cigarettes_duration_years: z.string().optional().or(z.literal('')),
-    other_habit_details: z.string().optional().or(z.literal('')),
-    menstrual_status: z.enum(['menstrual', 'postmenopausal', '1st_amenorrhea', '2nd_amenorrhea', 'irregular_menses']).optional(),
     vitals: z.object({
       temperature_c: z.string().optional().or(z.literal('')),
       bp_systolic: z.string().optional().or(z.literal('')),
@@ -91,7 +86,7 @@ type Props = {
   patientSex?: 'M' | 'F'
 }
 
-export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
+export function Step2Medical({ onSave, saving, error }: Props) {
   const [selectedComorbidities, setSelectedComorbidities] = useState<string[]>([])
   const [selectedFamilyConditions, setSelectedFamilyConditions] = useState<string[]>([])
   const [familyHistoryOther, setFamilyHistoryOther] = useState('')
@@ -111,7 +106,7 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
     resolver: zodResolver(schema),
     defaultValues: {
       diagnosis: { confirmed_cancer_patient: 'no', double_primary: 'no', metastasis_flag: 'no', sample_type: 'tissue' },
-      history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none', smoking_status: 'never' },
+      history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none' },
     },
   })
 
@@ -134,7 +129,6 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
   const doublePrimary = watch('diagnosis.double_primary')
   const metastasisFlag = watch('diagnosis.metastasis_flag')
   const sampleType = watch('diagnosis.sample_type')
-  const smokingStatus = watch('history.smoking_status')
   const primarySiteForSuggestions = watch('diagnosis.primary_site')
 
   const suggestions = PRIMARY_SITE_TESTS[primarySiteForSuggestions || ''] || PRIMARY_SITE_TESTS.default
@@ -263,6 +257,234 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
           <textarea {...register('diagnosis.chief_complaint')} rows={2}
             placeholder="e.g. Left breast lump for 3 months, progressive dyspnea..."
             className="input-en-full" />
+        </div>
+      </div>
+
+      {/* ── HISTORY (Past Medical History & Ongoing Medications) ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">📋</span>
+          <div><p className="card-title">History</p><p className="card-subtitle">التاريخ المرضي السابق</p></div>
+        </div>
+        <div className="card-body">
+          <p className="section-label-en">Comorbidities</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {COMORBIDITIES.map(item => (
+              <button type="button" key={item} onClick={() => toggleComorbidity(item)}
+                className={`tag-pill ${selectedComorbidities.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-3 mb-4">
+            <div>
+              <label className="field-label-en">Previous surgeries</label>
+              <textarea {...register('history.previous_surgeries')} rows={2}
+                placeholder="e.g. Left mastectomy 2021 — None if not applicable" className="input-en-full" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="field-label-en">Previous chemotherapy</label>
+                <select {...register('history.previous_chemo')} className="input-en-full">
+                  <option value="none">None</option>
+                  <option value="adjuvant">Yes — adjuvant</option>
+                  <option value="neoadjuvant">Yes — neoadjuvant</option>
+                  <option value="palliative">Yes — palliative</option>
+                  <option value="multiple_lines">Yes — multiple lines</option>
+                </select>
+              </div>
+              <div>
+                <label className="field-label-en">Radiation history</label>
+                <select {...register('history.previous_radiation')} className="input-en-full">
+                  <option value="none">None</option>
+                  <option value="same_site">Yes — same site</option>
+                  <option value="different_site">Yes — different site</option>
+                  <option value="wbrt">Yes — whole brain (WBRT)</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="field-label-en">Known drug allergies</label>
+              <input {...register('history.drug_allergies')} placeholder="NKDA if none" className="input-en-full" />
+            </div>
+          </div>
+
+          <p className="section-label-en">Ongoing Medications</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {ONGOING_MEDICATIONS.map(item => (
+              <button type="button" key={item} onClick={() => toggleMedication(item)}
+                className={`tag-pill ${selectedMedications.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <div>
+            <label className="field-label-en">Other medications (specify)</label>
+            <input {...register('history.ongoing_medications_other')} placeholder="Any other medications not listed above..." className="input-en-full" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── VITAL SIGNS ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon red">❤️</span>
+          <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-4 gap-3 mb-3">
+            <div>
+              <label className="field-label-en">Temperature (°C)</label>
+              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Systolic</label>
+              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">BP Diastolic</label>
+              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">Pulse (bpm)</label>
+              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div>
+              <label className="field-label-en">Respiratory Rate</label>
+              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">SpO2 (%)</label>
+              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
+            </div>
+            <div>
+              <label className="field-label-en">Pain Score (0-10)</label>
+              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
+            </div>
+          </div>
+
+          <p className="section-label-en">Physical Examination</p>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="field-label-en">Pallor</label>
+              <select {...register('history.vitals.pallor')} className="input-en-full">
+                <option value="">—</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">Jaundice</label>
+              <select {...register('history.vitals.jaundice')} className="input-en-full">
+                <option value="">—</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+
+          <p className="section-label-en">Virology</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="field-label-en">HBV</label>
+              <select {...register('history.vitals.hbv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+                <option value="na">N/A</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">HCV</label>
+              <select {...register('history.vitals.hcv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+                <option value="na">N/A</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label-en">HIV</label>
+              <select {...register('history.vitals.hiv_status')} className="input-en-full">
+                <option value="">—</option>
+                <option value="positive">+ve</option>
+                <option value="negative">-ve</option>
+                <option value="na">N/A</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── ECOG ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">📊</span>
+          <div><p className="card-title">ECOG Performance Status</p><p className="card-subtitle">مؤشر الأداء الوظيفي</p></div>
+        </div>
+        <div className="card-body">
+          <div className="flex gap-2 flex-wrap">
+            {['0', '1', '2', '3', '4'].map(ps => (
+              <label key={ps} className="radio-opt-en">
+                <input type="radio" value={ps} {...register('history.ecog_ps')} />
+                <span className="rdot" />
+                PS {ps}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── FAMILY HISTORY ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">👪</span>
+          <div><p className="card-title">Family History</p><p className="card-subtitle">التاريخ العائلي</p></div>
+        </div>
+        <div className="card-body">
+          <p className="section-label-en">General Conditions</p>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {FAMILY_HISTORY_CONDITIONS.map(item => (
+              <button type="button" key={item} onClick={() => toggleFamilyCondition(item)}
+                className={`tag-pill ${selectedFamilyConditions.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+          {selectedFamilyConditions.includes('Other') && (
+            <input value={familyHistoryOther} onChange={e => setFamilyHistoryOther(e.target.value)}
+              placeholder="Specify other family history..." className="input-en-full mb-4" />
+          )}
+
+          <div className="flex justify-between items-center mb-2 mt-4">
+            <p className="section-label-en m-0">Oncology Family History</p>
+            <button type="button" onClick={addOncologyFH} className="tag-pill tag-pill-on">+ Add family member</button>
+          </div>
+          {oncologyFhEntries.length === 0 && <p className="text-xs text-slate-400 mb-2">No oncology family history added</p>}
+          <div className="space-y-2">
+            {oncologyFhEntries.map(entry => (
+              <div key={entry.id} className="grid grid-cols-5 gap-2 items-center border border-slate-200 rounded-lg p-2">
+                <input
+                  value={entry.person}
+                  onChange={e => updateOncologyFH(entry.id, 'person', e.target.value)}
+                  placeholder="Which person (e.g. Mother, Uncle)"
+                  className="input-en-full col-span-2"
+                />
+                {entry.person && (
+                  <input
+                    value={entry.type}
+                    onChange={e => updateOncologyFH(entry.id, 'type', e.target.value)}
+                    placeholder="Type of cancer"
+                    className="input-en-full col-span-2"
+                  />
+                )}
+                <button type="button" onClick={() => removeOncologyFH(entry.id)} className="text-red-500 text-xs px-2">✕</button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -537,294 +759,12 @@ export function Step2Medical({ onSave, saving, error, patientSex }: Props) {
         </div>
       </div>
 
-      {/* ── SOCIAL HABITS & MENSTRUAL STATUS ── */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-icon amber">🚬</span>
-          <div><p className="card-title">Social Habits</p><p className="card-subtitle">العادات الاجتماعية</p></div>
-        </div>
-        <div className="card-body">
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="field-label-en">Smoking / habits</label>
-              <select {...register('history.smoking_status')} className="input-en-full">
-                <option value="never">Never</option>
-                <option value="cigarettes">Cigarettes</option>
-                <option value="former">Former smoker</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            {patientSex === 'F' && (
-              <div>
-                <label className="field-label-en">Menstrual status</label>
-                <select {...register('history.menstrual_status')} className="input-en-full">
-                  <option value="">—</option>
-                  <option value="menstrual">Menstrual</option>
-                  <option value="postmenopausal">Postmenopausal</option>
-                  <option value="1st_amenorrhea">1st Amenorrhea</option>
-                  <option value="2nd_amenorrhea">2nd Amenorrhea</option>
-                  <option value="irregular_menses">Irregular Menses</option>
-                </select>
-              </div>
-            )}
-
-            {smokingStatus === 'cigarettes' && (
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="field-label-en">Packs / day</label>
-                  <input type="number" step="0.1" {...register('history.cigarettes_pack_per_day')} placeholder="e.g. 1" className="input-en-full" />
-                </div>
-                <div>
-                  <label className="field-label-en">Duration (years)</label>
-                  <input type="number" {...register('history.cigarettes_duration_years')} placeholder="e.g. 15" className="input-en-full" />
-                </div>
-              </div>
-            )}
-
-            {smokingStatus === 'other' && (
-              <div>
-                <label className="field-label-en">Specify habit</label>
-                <input {...register('history.other_habit_details')} placeholder="e.g. Shisha, Chewing tobacco" className="input-en-full" />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── PAST MEDICAL HISTORY & ONGOING MEDICATIONS ── */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-icon navy">📋</span>
-          <div><p className="card-title">Past Medical History</p><p className="card-subtitle">التاريخ المرضي السابق</p></div>
-        </div>
-        <div className="card-body">
-          <p className="section-label-en">Comorbidities</p>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {COMORBIDITIES.map(item => (
-              <button type="button" key={item} onClick={() => toggleComorbidity(item)}
-                className={`tag-pill ${selectedComorbidities.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
-                {item}
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-3 mb-4">
-            <div>
-              <label className="field-label-en">Previous surgeries</label>
-              <textarea {...register('history.previous_surgeries')} rows={2}
-                placeholder="e.g. Left mastectomy 2021 — None if not applicable" className="input-en-full" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="field-label-en">Previous chemotherapy</label>
-                <select {...register('history.previous_chemo')} className="input-en-full">
-                  <option value="none">None</option>
-                  <option value="adjuvant">Yes — adjuvant</option>
-                  <option value="neoadjuvant">Yes — neoadjuvant</option>
-                  <option value="palliative">Yes — palliative</option>
-                  <option value="multiple_lines">Yes — multiple lines</option>
-                </select>
-              </div>
-              <div>
-                <label className="field-label-en">Radiation history</label>
-                <select {...register('history.previous_radiation')} className="input-en-full">
-                  <option value="none">None</option>
-                  <option value="same_site">Yes — same site</option>
-                  <option value="different_site">Yes — different site</option>
-                  <option value="wbrt">Yes — whole brain (WBRT)</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="field-label-en">Known drug allergies</label>
-              <input {...register('history.drug_allergies')} placeholder="NKDA if none" className="input-en-full" />
-            </div>
-          </div>
-
-          <p className="section-label-en">Ongoing Medications</p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {ONGOING_MEDICATIONS.map(item => (
-              <button type="button" key={item} onClick={() => toggleMedication(item)}
-                className={`tag-pill ${selectedMedications.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
-                {item}
-              </button>
-            ))}
-          </div>
-          <div>
-            <label className="field-label-en">Other medications (specify)</label>
-            <input {...register('history.ongoing_medications_other')} placeholder="Any other medications not listed above..." className="input-en-full" />
-          </div>
-        </div>
-      </div>
-
-      {/* ── FAMILY HISTORY ── */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-icon navy">👪</span>
-          <div><p className="card-title">Family History</p><p className="card-subtitle">التاريخ العائلي</p></div>
-        </div>
-        <div className="card-body">
-          <p className="section-label-en">General Conditions</p>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {FAMILY_HISTORY_CONDITIONS.map(item => (
-              <button type="button" key={item} onClick={() => toggleFamilyCondition(item)}
-                className={`tag-pill ${selectedFamilyConditions.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
-                {item}
-              </button>
-            ))}
-          </div>
-          {selectedFamilyConditions.includes('Other') && (
-            <input value={familyHistoryOther} onChange={e => setFamilyHistoryOther(e.target.value)}
-              placeholder="Specify other family history..." className="input-en-full mb-4" />
-          )}
-
-          <div className="flex justify-between items-center mb-2 mt-4">
-            <p className="section-label-en m-0">Oncology Family History</p>
-            <button type="button" onClick={addOncologyFH} className="tag-pill tag-pill-on">+ Add family member</button>
-          </div>
-          {oncologyFhEntries.length === 0 && <p className="text-xs text-slate-400 mb-2">No oncology family history added</p>}
-          <div className="space-y-2">
-            {oncologyFhEntries.map(entry => (
-              <div key={entry.id} className="grid grid-cols-5 gap-2 items-center border border-slate-200 rounded-lg p-2">
-                <input
-                  value={entry.person}
-                  onChange={e => updateOncologyFH(entry.id, 'person', e.target.value)}
-                  placeholder="Which person (e.g. Mother, Uncle)"
-                  className="input-en-full col-span-2"
-                />
-                {entry.person && (
-                  <input
-                    value={entry.type}
-                    onChange={e => updateOncologyFH(entry.id, 'type', e.target.value)}
-                    placeholder="Type of cancer"
-                    className="input-en-full col-span-2"
-                  />
-                )}
-                <button type="button" onClick={() => removeOncologyFH(entry.id)} className="text-red-500 text-xs px-2">✕</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── VITAL SIGNS ── */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-icon red">❤️</span>
-          <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
-        </div>
-        <div className="card-body">
-          <div className="grid grid-cols-4 gap-3 mb-3">
-            <div>
-              <label className="field-label-en">Temperature (°C)</label>
-              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">BP Systolic</label>
-              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">BP Diastolic</label>
-              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">Pulse (bpm)</label>
-              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div>
-              <label className="field-label-en">Respiratory Rate</label>
-              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">SpO2 (%)</label>
-              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">Pain Score (0-10)</label>
-              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
-            </div>
-          </div>
-
-          <p className="section-label-en">Physical Examination</p>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div>
-              <label className="field-label-en">Pallor</label>
-              <select {...register('history.vitals.pallor')} className="input-en-full">
-                <option value="">—</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-            <div>
-              <label className="field-label-en">Jaundice</label>
-              <select {...register('history.vitals.jaundice')} className="input-en-full">
-                <option value="">—</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-          </div>
-
-          <p className="section-label-en">Virology</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="field-label-en">HBV</label>
-              <select {...register('history.vitals.hbv_status')} className="input-en-full">
-                <option value="">—</option>
-                <option value="positive">+ve</option>
-                <option value="negative">-ve</option>
-                <option value="na">N/A</option>
-              </select>
-            </div>
-            <div>
-              <label className="field-label-en">HCV</label>
-              <select {...register('history.vitals.hcv_status')} className="input-en-full">
-                <option value="">—</option>
-                <option value="positive">+ve</option>
-                <option value="negative">-ve</option>
-                <option value="na">N/A</option>
-              </select>
-            </div>
-            <div>
-              <label className="field-label-en">HIV</label>
-              <select {...register('history.vitals.hiv_status')} className="input-en-full">
-                <option value="">—</option>
-                <option value="positive">+ve</option>
-                <option value="negative">-ve</option>
-                <option value="na">N/A</option>
-              </select>
-            </div>
-          </div>
-
-          {/* ── ECOG ── */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-icon navy">📊</span>
-              <div><p className="card-title">ECOG Performance Status</p><p className="card-subtitle">مؤشر الأداء الوظيفي</p></div>
-            </div>
-            <div className="card-body">
-              <div className="flex gap-2 flex-wrap">
-                {['0', '1', '2', '3', '4'].map(ps => (
-                  <label key={ps} className="radio-opt-en">
-                    <input type="radio" value={ps} {...register('history.ecog_ps')} />
-                    <span className="rdot" />
-                    PS {ps}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center pt-2">
-            <p className="text-xs text-slate-400 font-mono">All fields in English · No mandatory fields</p>
-            <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? 'Saving...' : 'Save & Complete Registration'}
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            </button>
-          </div>
-        </div>
+      <div className="flex justify-between items-center pt-2">
+        <p className="text-xs text-slate-400 font-mono">All fields in English · No mandatory fields</p>
+        <button type="submit" disabled={saving} className="btn-primary">
+          {saving ? 'Saving...' : 'Save & Complete Registration'}
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
+        </button>
       </div>
     </form>
   )

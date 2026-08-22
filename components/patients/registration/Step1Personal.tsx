@@ -1,6 +1,7 @@
 'use client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { schema, type Step1Data } from '@/lib/hooks/useRegistration'
 import { GOVERNORATES, COUNTRIES } from '@/lib/constants/medicalLists'
 
@@ -37,6 +38,15 @@ export function Step1Personal({ onSave, saving, error }: Props) {
   const referralSource = watch('referral_source')
   const weight = watch('weight_kg')
   const height = watch('height_cm')
+  const sex = watch('sex')
+
+  // ── Social Habits (moved here from Step2Medical) ──
+  const [smokingStatus, setSmokingStatus] = useState<'never' | 'cigarettes' | 'former' | 'other'>('never')
+  const [cigarettesPackPerDay, setCigarettesPackPerDay] = useState('')
+  const [cigarettesDurationYears, setCigarettesDurationYears] = useState('')
+  const [smokingStopped, setSmokingStopped] = useState(false)
+  const [otherHabitDetails, setOtherHabitDetails] = useState('')
+  const [menstrualStatus, setMenstrualStatus] = useState('')
 
   const referralNameLabel =
     referralSource === 'physician' ? 'اسم الطبيب المحوّل' :
@@ -54,7 +64,17 @@ export function Step1Personal({ onSave, saving, error }: Props) {
     }
   }
 
-  const onSubmit = (data: Step1Data) => onSave(data)
+  const onSubmit = (data: Step1Data) => onSave({
+    ...data,
+    social_habits: {
+      smoking_status: smokingStatus,
+      cigarettes_pack_per_day: (smokingStatus === 'cigarettes' || smokingStatus === 'former') ? cigarettesPackPerDay : '',
+      cigarettes_duration_years: (smokingStatus === 'cigarettes' || smokingStatus === 'former') ? cigarettesDurationYears : '',
+      smoking_stopped: (smokingStatus === 'cigarettes' || smokingStatus === 'former') ? smokingStopped : false,
+      other_habit_details: smokingStatus === 'other' ? otherHabitDetails : '',
+      menstrual_status: sex === 'F' ? menstrualStatus : '',
+    },
+  } as any)
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" dir="rtl">
@@ -215,6 +235,70 @@ export function Step1Personal({ onSave, saving, error }: Props) {
               <input type="number" step="0.1" {...register('nutri_score')} placeholder="e.g. 3" className="input-en" />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── SOCIAL HABITS (moved from Step2Medical) ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon amber">🚬</span>
+          <div><p className="card-title">العادات الاجتماعية</p><p className="card-subtitle">Social Habits</p></div>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="field-label">التدخين / العادات<span className="el">Smoking / habits</span></label>
+              <select value={smokingStatus} onChange={e => setSmokingStatus(e.target.value as any)} className="input-select">
+                <option value="never">لا يوجد · Never</option>
+                <option value="cigarettes">سجائر · Cigarettes</option>
+                <option value="former">مدخن سابق · Former smoker</option>
+                <option value="other">أخرى · Other</option>
+              </select>
+            </div>
+            {sex === 'F' && (
+              <div>
+                <label className="field-label">الحالة الطمثية<span className="el">Menstrual status</span></label>
+                <select value={menstrualStatus} onChange={e => setMenstrualStatus(e.target.value)} className="input-select">
+                  <option value="">—</option>
+                  <option value="menstrual">طمث منتظم · Menstrual</option>
+                  <option value="postmenopausal">بعد سن اليأس · Postmenopausal</option>
+                  <option value="1st_amenorrhea">انقطاع أولي · 1st Amenorrhea</option>
+                  <option value="2nd_amenorrhea">انقطاع ثانوي · 2nd Amenorrhea</option>
+                  <option value="irregular_menses">طمث غير منتظم · Irregular Menses</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {(smokingStatus === 'cigarettes' || smokingStatus === 'former') && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="field-label">عدد العلب / يوم<span className="el">Packs / day</span></label>
+                <input type="number" step="0.1" value={cigarettesPackPerDay} onChange={e => setCigarettesPackPerDay(e.target.value)}
+                  placeholder="e.g. 1" className="input-en" />
+              </div>
+              <div>
+                <label className="field-label">المدة (سنوات)<span className="el">Duration (years)</span></label>
+                <input type="number" value={cigarettesDurationYears} onChange={e => setCigarettesDurationYears(e.target.value)}
+                  placeholder="e.g. 15" className="input-en" />
+              </div>
+            </div>
+          )}
+
+          {(smokingStatus === 'cigarettes' || smokingStatus === 'former') && (
+            <label className="flex items-center gap-2 text-sm cursor-pointer mb-3">
+              <input type="checkbox" checked={smokingStopped} onChange={e => setSmokingStopped(e.target.checked)} />
+              متوقف <span className="el">Stopped</span>
+            </label>
+          )}
+
+          {smokingStatus === 'other' && (
+            <div>
+              <label className="field-label">حدد العادة<span className="el">Specify habit</span></label>
+              <input value={otherHabitDetails} onChange={e => setOtherHabitDetails(e.target.value)}
+                placeholder="e.g. Shisha, Chewing tobacco" className="input-en" />
+            </div>
+          )}
         </div>
       </div>
 

@@ -183,6 +183,7 @@ export default function ImagingPage() {
                 <NewImagingModal
                     patients={patients}
                     saving={saving}
+                    responseLabels={responseLabels}
                     onClose={() => setShowNew(false)}
                     onSave={async (data: any) => {
                         await addStudy(data)
@@ -202,14 +203,14 @@ export default function ImagingPage() {
     )
 }
 
-function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, presetPatientName }: any) {
+function NewImagingModal({ patients, saving, responseLabels, onClose, onSave, presetPatientId, presetPatientName }: any) {
     const { customTypes, addCustomType } = useCustomTestTypes('imaging')
     const [form, setForm] = useState({
         patient_id: presetPatientId || '', imaging_type: '', custom_type_name: '',
         body_region: '', study_date: new Date().toISOString().split('T')[0],
         is_baseline: false, notes: '',
+        findings: '', response_assessment: '',
     })
-    // ... باقي الـ state زي ما هو
     const [searchQuery, setSearchQuery] = useState('')
     const [showAddNew, setShowAddNew] = useState(false)
     const [newTypeName, setNewTypeName] = useState('')
@@ -246,6 +247,7 @@ function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, p
         setError('')
         try {
             const isCustom = form.imaging_type.startsWith('custom:')
+            const hasFindings = form.findings.trim().length > 0
             await onSave({
                 patient_id: form.patient_id,
                 imaging_type: isCustom ? 'other' : form.imaging_type,
@@ -253,8 +255,11 @@ function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, p
                 body_region: form.body_region || null,
                 study_date: form.study_date,
                 is_baseline: form.is_baseline,
-                status: 'ordered',
+                status: hasFindings ? 'completed' : 'ordered',
                 notes: form.notes || null,
+                findings: hasFindings ? form.findings : null,
+                response_assessment: form.response_assessment || null,
+                reported_at: hasFindings ? new Date().toISOString() : null,
             })
         } catch (e: any) {
             setError(e.message)
@@ -264,9 +269,9 @@ function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, p
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
             onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 18, width: 460, direction: 'rtl', fontFamily: 'Cairo' }}>
-                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>📷 طلب أشعة جديد</p>
+            <div style={{ background: '#fff', borderRadius: 18, width: 500, maxHeight: '90vh', overflowY: 'auto', direction: 'rtl', fontFamily: 'Cairo' }}>
+                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 5 }}>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>📷 تسجيل أشعة جديدة</p>
                     <button onClick={onClose} style={{ background: '#f7f8fc', border: '1px solid #dde2ee', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', fontSize: 14, color: '#8e97b5' }}>✕</button>
                 </div>
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -323,7 +328,7 @@ function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, p
                                 placeholder="e.g. Chest, Abdomen" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
                         </div>
                         <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ الدراسة</label>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ الدراسة *</label>
                             <input type="date" value={form.study_date} onChange={e => setForm((f: any) => ({ ...f, study_date: e.target.value }))}
                                 style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
                         </div>
@@ -334,6 +339,28 @@ function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, p
                         📍 دراسة أساسية (Baseline) — قبل بدء العلاج
                     </label>
 
+                    <hr style={{ border: 'none', borderTop: '1px solid #eef0f6', margin: '4px 0' }} />
+
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>
+                            النتيجة (Impression)
+                        </label>
+                        <textarea value={form.findings} onChange={e => setForm((f: any) => ({ ...f, findings: e.target.value }))}
+                            rows={3} placeholder="اكتب النتيجة لو متوفرة الآن — لو سيبتها فاضية هتتسجل الدراسة كـ (مطلوبة) لحد ما تدخل النتيجة لاحقًا"
+                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', resize: 'none', fontFamily: 'Cairo', boxSizing: 'border-box' }} />
+                    </div>
+
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تقييم الاستجابة</label>
+                        <select value={form.response_assessment} onChange={e => setForm((f: any) => ({ ...f, response_assessment: e.target.value }))}
+                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
+                            <option value="">— بدون —</option>
+                            {responseLabels && Object.entries(responseLabels).map(([key, label]: [string, any]) => (
+                                <option key={key} value={key}>{label}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div>
                         <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ملاحظات</label>
                         <textarea value={form.notes} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} rows={2}
@@ -343,7 +370,7 @@ function NewImagingModal({ patients, saving, onClose, onSave, presetPatientId, p
                 <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
                     <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
                     <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
-                        {saving ? 'جارٍ الحفظ...' : 'حفظ الطلب'}
+                        {saving ? 'جارٍ الحفظ...' : 'حفظ'}
                     </button>
                 </div>
 
