@@ -14,6 +14,28 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
     cancelled: { label: 'ملغية', color: '#e53e3e', bg: '#fde8e8' },
 }
 
+// مناطق الجسم القابلة للاختيار المتعدد بدل حقل النص الحر
+// (المستخدم يقدر كمان يضيف مناطق جديدة يدويًا وهتتحفظ في القائمة لاستخدامها لاحقًا — انظر custom regions في NewImagingModal)
+const BODY_REGIONS = [
+    { key: 'brain', label: 'المخ', labelEn: 'Brain' },
+    { key: 'neck', label: 'الرقبة', labelEn: 'Neck' },
+    { key: 'chest', label: 'الصدر', labelEn: 'Chest' },
+    { key: 'abdomen', label: 'البطن', labelEn: 'Abdomen' },
+    { key: 'pelvis', label: 'الحوض', labelEn: 'Pelvis' },
+    { key: 'abdomen_pelvis', label: 'البطن والحوض', labelEn: 'Abdomen & Pelvis' },
+    { key: 'chest_abdomen_pelvis', label: 'الصدر والبطن والحوض', labelEn: 'CAP' },
+    { key: 'spine', label: 'العمود الفقري', labelEn: 'Spine' },
+    { key: 'both_breasts', label: 'الثديين', labelEn: 'Both Breasts' },
+    { key: 'left_breast', label: 'الثدي الأيسر', labelEn: 'Left Breast' },
+    { key: 'right_breast', label: 'الثدي الأيمن', labelEn: 'Right Breast' },
+    { key: 'thyroid', label: 'الغدة الدرقية', labelEn: 'Thyroid' },
+    { key: 'transrectal', label: 'عبر المستقيم', labelEn: 'Transrectal' },
+    { key: 'transvaginal', label: 'عبر المهبل', labelEn: 'Transvaginal' },
+    { key: 'upper_limbs', label: 'الأطراف العلوية', labelEn: 'Upper Limbs' },
+    { key: 'lower_limbs', label: 'الأطراف السفلية', labelEn: 'Lower Limbs' },
+    { key: 'whole_body', label: 'كامل الجسم', labelEn: 'Whole Body' },
+]
+
 export default function ImagingPage() {
     const { studies, loading, saving, error, addStudy, updateStatus, typeLabels, getTypeLabel, responseLabels } = useImaging()
     const [patients, setPatients] = useState<any[]>([])
@@ -205,20 +227,28 @@ export default function ImagingPage() {
 
 function NewImagingModal({ patients, saving, responseLabels, onClose, onSave, presetPatientId, presetPatientName }: any) {
     const { customTypes, addCustomType } = useCustomTestTypes('imaging')
+    // مناطق الجسم المخصصة بتتخزن في نفس جدول custom_test_types (kind = 'imaging')
+    // لكن بنميّزها بعمود category = 'body_region' عشان متتلخبطش مع أنواع الأشعة المخصصة
+    const customImagingTypes = customTypes.filter(t => t.category !== 'body_region')
+    const customRegions = customTypes.filter(t => t.category === 'body_region')
+
     const [form, setForm] = useState({
         patient_id: presetPatientId || '', imaging_type: '', custom_type_name: '',
-        body_region: '', study_date: new Date().toISOString().split('T')[0],
-        is_baseline: false, notes: '',
+        body_regions: [] as string[], study_date: new Date().toISOString().split('T')[0],
+        is_baseline: false, with_contrast: false, notes: '',
         findings: '', response_assessment: '',
+        compared_with_previous: false, previous_study_date: '',
     })
     const [searchQuery, setSearchQuery] = useState('')
     const [showAddNew, setShowAddNew] = useState(false)
     const [newTypeName, setNewTypeName] = useState('')
+    const [showAddRegion, setShowAddRegion] = useState(false)
+    const [newRegionName, setNewRegionName] = useState('')
     const [error, setError] = useState('')
 
     const allTypes = [
         ...IMAGING_TYPES.map(t => ({ key: t.key, label: t.label, isCustom: false })),
-        ...customTypes.map(t => ({ key: `custom:${t.id}`, label: t.name, isCustom: true })),
+        ...customImagingTypes.map(t => ({ key: `custom:${t.id}`, label: t.name, isCustom: true })),
     ]
     const searchResults = searchQuery
         ? allTypes.filter(t => t.label.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
@@ -227,6 +257,21 @@ function NewImagingModal({ patients, saving, responseLabels, onClose, onSave, pr
     const selectedTypeLabel = form.imaging_type
         ? allTypes.find(t => t.key === form.imaging_type)?.label
         : ''
+
+    // قائمة المناطق الكاملة = المناطق الجاهزة + أي مناطق مخصصة اتضافت قبل كده
+    const allRegions = [
+        ...BODY_REGIONS,
+        ...customRegions.map((r: any) => ({ key: `custom:${r.id}`, label: r.name, labelEn: '' })),
+    ]
+
+    function toggleRegion(key: string) {
+        setForm((f: any) => ({
+            ...f,
+            body_regions: f.body_regions.includes(key)
+                ? f.body_regions.filter((r: string) => r !== key)
+                : [...f.body_regions, key],
+        }))
+    }
 
     async function handleAddNew() {
         if (!newTypeName) return
@@ -239,25 +284,60 @@ function NewImagingModal({ patients, saving, responseLabels, onClose, onSave, pr
         setNewTypeName('')
     }
 
+    async function handleAddRegion() {
+        if (!newRegionName.trim()) return
+        const created = await addCustomType({ name: newRegionName.trim(), category: 'body_region' })
+        if (created) {
+            setForm((f: any) => ({ ...f, body_regions: [...f.body_regions, `custom:${created.id}`] }))
+        }
+        setShowAddRegion(false)
+        setNewRegionName('')
+    }
+
     async function handleSubmit() {
         if (!form.patient_id || !form.imaging_type) {
             setError('يرجى اختيار المريض ونوع الأشعة')
+            return
+        }
+        if (form.compared_with_previous && !form.previous_study_date) {
+            setError('يرجى تحديد تاريخ الأشعة السابقة للمقارنة')
             return
         }
         setError('')
         try {
             const isCustom = form.imaging_type.startsWith('custom:')
             const hasFindings = form.findings.trim().length > 0
+
+            // اسم مناطق الجسم المختارة كنص (متوافق مع عمود body_region الحالي في قاعدة البيانات)
+            const regionText = form.body_regions
+                .map(key => allRegions.find(r => r.key === key)?.label)
+                .filter(Boolean)
+                .join('، ')
+
+            // لو فيه مقارنة مع أشعة سابقة، السطر ده بيتكتب في أول الـ Impression/Findings
+            let findingsFinal: string | null = null
+            if (hasFindings) {
+                findingsFinal = form.compared_with_previous && form.previous_study_date
+                    ? `بالمقارنة مع أشعة بتاريخ ${form.previous_study_date}:\n\n${form.findings.trim()}`
+                    : form.findings.trim()
+            }
+
+            // الصبغة مفيش لها عمود مخصص حاليًا في imaging_studies، فبتتسجل داخل الملاحظات
+            const notesFinal = [
+                form.with_contrast ? '💉 بالصبغة (With Contrast)' : null,
+                form.notes || null,
+            ].filter(Boolean).join('\n') || null
+
             await onSave({
                 patient_id: form.patient_id,
                 imaging_type: isCustom ? 'other' : form.imaging_type,
                 custom_type_label: isCustom ? selectedTypeLabel : null,
-                body_region: form.body_region || null,
+                body_region: regionText || null,
                 study_date: form.study_date,
                 is_baseline: form.is_baseline,
                 status: hasFindings ? 'completed' : 'ordered',
-                notes: form.notes || null,
-                findings: hasFindings ? form.findings : null,
+                notes: notesFinal,
+                findings: findingsFinal,
                 response_assessment: form.response_assessment || null,
                 reported_at: hasFindings ? new Date().toISOString() : null,
             })
@@ -321,23 +401,84 @@ function NewImagingModal({ patients, saving, responseLabels, onClose, onSave, pr
                         )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>منطقة الجسم</label>
-                            <input value={form.body_region} onChange={e => setForm((f: any) => ({ ...f, body_region: e.target.value }))}
-                                placeholder="e.g. Chest, Abdomen" style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
+                    {/* منطقة الجسم — اختيار متعدد بدل النص الحر، مع إمكانية إضافة منطقة جديدة تتحفظ للاستخدام لاحقًا */}
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 8 }}>منطقة الجسم</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {allRegions.map(r => (
+                                <div
+                                    key={r.key}
+                                    onClick={() => toggleRegion(r.key)}
+                                    className={form.body_regions.includes(r.key) ? 'tag-pill tag-pill-on' : 'tag-pill tag-pill-off'}
+                                >
+                                    {r.label} {r.labelEn && <span style={{ fontSize: 9, opacity: .7, fontFamily: 'DM Mono' }}>{r.labelEn}</span>}
+                                </div>
+                            ))}
+                            <div
+                                onClick={() => setShowAddRegion(true)}
+                                className="tag-pill tag-pill-off"
+                                style={{ borderStyle: 'dashed', color: '#1a8a78', fontWeight: 700 }}
+                            >
+                                + إضافة منطقة أخرى
+                            </div>
                         </div>
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ الدراسة *</label>
-                            <input type="date" value={form.study_date} onChange={e => setForm((f: any) => ({ ...f, study_date: e.target.value }))}
-                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
-                        </div>
+                        {showAddRegion && (
+                            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                                <input
+                                    value={newRegionName}
+                                    onChange={e => setNewRegionName(e.target.value)}
+                                    placeholder="مثال: Both Knees"
+                                    autoFocus
+                                    style={{ flex: 1, padding: '7px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                                    onKeyDown={e => e.key === 'Enter' && handleAddRegion()}
+                                />
+                                <button onClick={handleAddRegion} style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>إضافة</button>
+                                <button onClick={() => { setShowAddRegion(false); setNewRegionName('') }} style={{ padding: '7px 12px', borderRadius: 7, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ الدراسة *</label>
+                        <input type="date" value={form.study_date} onChange={e => setForm((f: any) => ({ ...f, study_date: e.target.value }))}
+                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
                     </div>
 
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }}>
                         <input type="checkbox" checked={form.is_baseline} onChange={e => setForm((f: any) => ({ ...f, is_baseline: e.target.checked }))} />
                         📍 دراسة أساسية (Baseline) — قبل بدء العلاج
                     </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={form.with_contrast} onChange={e => setForm((f: any) => ({ ...f, with_contrast: e.target.checked }))} />
+                        💉 بالصبغة (With Contrast)
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={form.compared_with_previous}
+                            onChange={e => setForm((f: any) => ({
+                                ...f,
+                                compared_with_previous: e.target.checked,
+                                previous_study_date: e.target.checked ? f.previous_study_date : '',
+                            }))}
+                        />
+                        🔄 بالمقارنة مع أشعة سابقة
+                    </label>
+
+                    {form.compared_with_previous && (
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ الأشعة السابقة *</label>
+                            <input
+                                type="date"
+                                value={form.previous_study_date}
+                                onChange={e => setForm((f: any) => ({ ...f, previous_study_date: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }}
+                            />
+                            <p style={{ fontSize: 10, color: '#8e97b5', margin: '4px 0 0' }}>هيتكتب تلقائيًا في أول الـ Impression: "بالمقارنة مع أشعة بتاريخ ..."</p>
+                        </div>
+                    )}
 
                     <hr style={{ border: 'none', borderTop: '1px solid #eef0f6', margin: '4px 0' }} />
 
@@ -399,6 +540,8 @@ function ImagingReportModal({ study, responseLabels, onClose }: any) {
 
     const [findings, setFindings] = useState(study.findings || '')
     const [responseAssessment, setResponseAssessment] = useState(study.response_assessment || '')
+    const [comparedWithPrevious, setComparedWithPrevious] = useState(false)
+    const [previousStudyDate, setPreviousStudyDate] = useState('')
     const [error, setError] = useState('')
 
     async function handleSubmit() {
@@ -406,9 +549,16 @@ function ImagingReportModal({ study, responseLabels, onClose }: any) {
             setError('يرجى ملء النتائج')
             return
         }
+        if (comparedWithPrevious && !previousStudyDate) {
+            setError('يرجى تحديد تاريخ الأشعة السابقة للمقارنة')
+            return
+        }
         setError('')
         try {
-            await addReport(study.id, findings, responseAssessment || undefined)
+            const findingsFinal = comparedWithPrevious && previousStudyDate
+                ? `بالمقارنة مع أشعة بتاريخ ${previousStudyDate}:\n\n${findings.trim()}`
+                : findings
+            await addReport(study.id, findingsFinal, responseAssessment || undefined)
             onClose()
         } catch (e: any) {
             setError(e.message)
@@ -432,6 +582,30 @@ function ImagingReportModal({ study, responseLabels, onClose }: any) {
                 </div>
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {(error || hookError) && <div style={{ background: '#fde8e8', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#e53e3e' }}>{error || hookError}</div>}
+
+                    {!isReadOnly && (
+                        <>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={comparedWithPrevious}
+                                    onChange={e => { setComparedWithPrevious(e.target.checked); if (!e.target.checked) setPreviousStudyDate('') }}
+                                />
+                                🔄 بالمقارنة مع أشعة سابقة
+                            </label>
+                            {comparedWithPrevious && (
+                                <div>
+                                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ الأشعة السابقة *</label>
+                                    <input
+                                        type="date"
+                                        value={previousStudyDate}
+                                        onChange={e => setPreviousStudyDate(e.target.value)}
+                                        style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }}
+                                    />
+                                </div>
+                            )}
+                        </>
+                    )}
 
                     <div>
                         <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>النتائج (Findings) *</label>
