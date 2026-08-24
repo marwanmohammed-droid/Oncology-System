@@ -58,9 +58,11 @@ export function useRegistration() {
   const [step, setStep] = useState(1)
   const [patientId, setPatientId] = useState<string | null>(null)
   const [patientSex, setPatientSex] = useState<'M' | 'F' | null>(null)
+  const [patientNotPresent, setPatientNotPresent] = useState(false) // ⬅️ جديد
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
+  // ... باقي الكود زي ما هو
 
   // STEP 1 — Receptionist creates patient
   async function saveStep1(data: Step1Data) {
@@ -323,6 +325,7 @@ export function useRegistration() {
 
   return {
     step, setStep, patientId, patientSex, saving, error,
+    patientNotPresent, setPatientNotPresent, // ⬅️ جديد
     saveStep1, saveStep2, saveStep3, signConsent, completeRegistration,
   }
 }

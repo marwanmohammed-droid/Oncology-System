@@ -10,9 +10,11 @@ type Props = {
   onSave: (data: Step1Data) => Promise<void>
   saving: boolean
   error: string | null
+  patientNotPresent: boolean                     // ⬅️ جديد
+  onPatientNotPresentChange: (v: boolean) => void // ⬅️ جديد
 }
 
-export function Step1Personal({ onSave, saving, error }: Props) {
+export function Step1Personal({ onSave, saving, error, patientNotPresent, onPatientNotPresentChange }: Props) {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Step1Data>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -66,6 +68,7 @@ export function Step1Personal({ onSave, saving, error }: Props) {
 
   const onSubmit = (data: Step1Data) => onSave({
     ...data,
+    patient_not_present: patientNotPresent,
     social_habits: {
       smoking_status: smokingStatus,
       cigarettes_pack_per_day: (smokingStatus === 'cigarettes' || smokingStatus === 'former') ? cigarettesPackPerDay : '',
@@ -84,6 +87,25 @@ export function Step1Personal({ onSave, saving, error }: Props) {
           {error}
         </div>
       )}
+
+      {/* ── PATIENT NOT PRESENT ── */}
+      <div className="card">
+        <div className="card-body">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={patientNotPresent}
+              onChange={e => onPatientNotPresentChange(e.target.checked)}
+            />
+            المريض غير موجود شخصيًا الآن <span className="el">Patient not physically present</span>
+          </label>
+          {patientNotPresent && (
+            <p className="hint mt-1">
+              هيتم تعطيل حقول الوزن، الطول، العلامات الحيوية، وECOG لحد ما المريض يحضر.
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* ── FULL NAME ── */}
       <div className="card">
@@ -212,13 +234,13 @@ export function Step1Personal({ onSave, saving, error }: Props) {
               <label className="field-label">الوزن (kg)<span className="el">Weight</span></label>
               <input type="number" step="0.1" {...register('weight_kg')}
                 onBlur={() => handleAnthro(weight || '', height || '')}
-                placeholder="70.0" className="input-en" />
+                placeholder="70.0" className="input-en" disabled={patientNotPresent} />
             </div>
             <div>
               <label className="field-label">الطول (cm)<span className="el">Height</span></label>
               <input type="number" step="0.5" {...register('height_cm')}
                 onBlur={() => handleAnthro(weight || '', height || '')}
-                placeholder="170" className="input-en" />
+                placeholder="170" className="input-en" disabled={patientNotPresent} />
             </div>
             <div>
               <label className="field-label">BSA (m²) — تلقائي</label>

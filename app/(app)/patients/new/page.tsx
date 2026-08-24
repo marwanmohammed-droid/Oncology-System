@@ -13,6 +13,7 @@ export default function NewPatientPage() {
   const router = useRouter()
   const {
     step, patientId, patientSex, saving, error,
+    patientNotPresent, setPatientNotPresent,
     saveStep1, saveStep2,
   } = useRegistration()
 
@@ -69,6 +70,8 @@ export default function NewPatientPage() {
           onSave={async (data) => { await saveStep1(data) }}
           saving={saving}
           error={error}
+          patientNotPresent={patientNotPresent}
+          onPatientNotPresentChange={setPatientNotPresent}
         />
       )}
       {step === 2 && (
@@ -77,6 +80,7 @@ export default function NewPatientPage() {
           saving={saving}
           error={error}
           patientSex={patientSex ?? undefined}
+          patientNotPresent={patientNotPresent}
         />
       )}
     </div>

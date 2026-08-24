@@ -84,9 +84,10 @@ type Props = {
   saving: boolean
   error: string | null
   patientSex?: 'M' | 'F'
+  patientNotPresent?: boolean   // ⬅️ جديد
 }
 
-export function Step2Medical({ onSave, saving, error }: Props) {
+export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props) {
   const [selectedComorbidities, setSelectedComorbidities] = useState<string[]>([])
   const [selectedFamilyConditions, setSelectedFamilyConditions] = useState<string[]>([])
   const [familyHistoryOther, setFamilyHistoryOther] = useState('')
@@ -333,89 +334,96 @@ export function Step2Medical({ onSave, saving, error }: Props) {
           <div><p className="card-title">Vital Signs</p><p className="card-subtitle">العلامات الحيوية</p></div>
         </div>
         <div className="card-body">
-          <div className="grid grid-cols-4 gap-3 mb-3">
-            <div>
-              <label className="field-label-en">Temperature (°C)</label>
-              <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+          {patientNotPresent && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3 text-xs text-amber-700">
+              Patient not present — vitals disabled until patient arrives
             </div>
-            <div>
-              <label className="field-label-en">BP Systolic</label>
-              <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
+          )}
+          <fieldset disabled={patientNotPresent} className={patientNotPresent ? 'opacity-50 pointer-events-none' : ''}>
+            <div className="grid grid-cols-4 gap-3 mb-3">
+              <div>
+                <label className="field-label-en">Temperature (°C)</label>
+                <input type="number" step="0.1" {...register('history.vitals.temperature_c')} placeholder="37.0" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">BP Systolic</label>
+                <input type="number" {...register('history.vitals.bp_systolic')} placeholder="120" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">BP Diastolic</label>
+                <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">Pulse (bpm)</label>
+                <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
+              </div>
             </div>
-            <div>
-              <label className="field-label-en">BP Diastolic</label>
-              <input type="number" {...register('history.vitals.bp_diastolic')} placeholder="80" className="input-en-full" />
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div>
+                <label className="field-label-en">Respiratory Rate</label>
+                <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">SpO2 (%)</label>
+                <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
+              </div>
+              <div>
+                <label className="field-label-en">Pain Score (0-10)</label>
+                <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
+              </div>
             </div>
-            <div>
-              <label className="field-label-en">Pulse (bpm)</label>
-              <input type="number" {...register('history.vitals.pulse_bpm')} placeholder="72" className="input-en-full" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div>
-              <label className="field-label-en">Respiratory Rate</label>
-              <input type="number" {...register('history.vitals.respiratory_rate')} placeholder="16" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">SpO2 (%)</label>
-              <input type="number" {...register('history.vitals.spo2_pct')} placeholder="98" className="input-en-full" />
-            </div>
-            <div>
-              <label className="field-label-en">Pain Score (0-10)</label>
-              <input type="number" min="0" max="10" {...register('history.vitals.pain_score')} placeholder="0" className="input-en-full" />
-            </div>
-          </div>
 
-          <p className="section-label-en">Physical Examination</p>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div>
-              <label className="field-label-en">Pallor</label>
-              <select {...register('history.vitals.pallor')} className="input-en-full">
-                <option value="">—</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
+            <p className="section-label-en">Physical Examination</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="field-label-en">Pallor</label>
+                <select {...register('history.vitals.pallor')} className="input-en-full">
+                  <option value="">—</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+              <div>
+                <label className="field-label-en">Jaundice</label>
+                <select {...register('history.vitals.jaundice')} className="input-en-full">
+                  <option value="">—</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="field-label-en">Jaundice</label>
-              <select {...register('history.vitals.jaundice')} className="input-en-full">
-                <option value="">—</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-          </div>
 
-          <p className="section-label-en">Virology</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="field-label-en">HBV</label>
-              <select {...register('history.vitals.hbv_status')} className="input-en-full">
-                <option value="">—</option>
-                <option value="positive">+ve</option>
-                <option value="negative">-ve</option>
-                <option value="na">N/A</option>
-              </select>
+            <p className="section-label-en">Virology</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="field-label-en">HBV</label>
+                <select {...register('history.vitals.hbv_status')} className="input-en-full">
+                  <option value="">—</option>
+                  <option value="positive">+ve</option>
+                  <option value="negative">-ve</option>
+                  <option value="na">N/A</option>
+                </select>
+              </div>
+              <div>
+                <label className="field-label-en">HCV</label>
+                <select {...register('history.vitals.hcv_status')} className="input-en-full">
+                  <option value="">—</option>
+                  <option value="positive">+ve</option>
+                  <option value="negative">-ve</option>
+                  <option value="na">N/A</option>
+                </select>
+              </div>
+              <div>
+                <label className="field-label-en">HIV</label>
+                <select {...register('history.vitals.hiv_status')} className="input-en-full">
+                  <option value="">—</option>
+                  <option value="positive">+ve</option>
+                  <option value="negative">-ve</option>
+                  <option value="na">N/A</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="field-label-en">HCV</label>
-              <select {...register('history.vitals.hcv_status')} className="input-en-full">
-                <option value="">—</option>
-                <option value="positive">+ve</option>
-                <option value="negative">-ve</option>
-                <option value="na">N/A</option>
-              </select>
-            </div>
-            <div>
-              <label className="field-label-en">HIV</label>
-              <select {...register('history.vitals.hiv_status')} className="input-en-full">
-                <option value="">—</option>
-                <option value="positive">+ve</option>
-                <option value="negative">-ve</option>
-                <option value="na">N/A</option>
-              </select>
-            </div>
-          </div>
+          </fieldset>
         </div>
       </div>
 
@@ -426,7 +434,12 @@ export function Step2Medical({ onSave, saving, error }: Props) {
           <div><p className="card-title">ECOG Performance Status</p><p className="card-subtitle">مؤشر الأداء الوظيفي</p></div>
         </div>
         <div className="card-body">
-          <div className="flex gap-2 flex-wrap">
+          {patientNotPresent && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3 text-xs text-amber-700">
+              Patient not present — ECOG disabled until patient arrives
+            </div>
+          )}
+          <fieldset disabled={patientNotPresent} className={`flex gap-2 flex-wrap ${patientNotPresent ? 'opacity-50' : ''}`}>
             {['0', '1', '2', '3', '4'].map(ps => (
               <label key={ps} className="radio-opt-en">
                 <input type="radio" value={ps} {...register('history.ecog_ps')} />
@@ -434,7 +447,7 @@ export function Step2Medical({ onSave, saving, error }: Props) {
                 PS {ps}
               </label>
             ))}
-          </div>
+          </fieldset>
         </div>
       </div>
 
