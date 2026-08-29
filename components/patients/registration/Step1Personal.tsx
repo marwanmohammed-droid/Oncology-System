@@ -10,8 +10,8 @@ type Props = {
   onSave: (data: Step1Data) => Promise<void>
   saving: boolean
   error: string | null
-  patientNotPresent: boolean                     // ⬅️ جديد
-  onPatientNotPresentChange: (v: boolean) => void // ⬅️ جديد
+  patientNotPresent: boolean
+  onPatientNotPresentChange: (v: boolean) => void
 }
 
 export function Step1Personal({ onSave, saving, error, patientNotPresent, onPatientNotPresentChange }: Props) {
@@ -66,9 +66,14 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
     }
   }
 
+  const disabledFieldStyle: React.CSSProperties = { opacity: 0.4, pointerEvents: 'none' }
+
   const onSubmit = (data: Step1Data) => onSave({
     ...data,
-    patient_not_present: patientNotPresent,
+    weight_kg: patientNotPresent ? '' : data.weight_kg,
+    height_cm: patientNotPresent ? '' : data.height_cm,
+    bsa: patientNotPresent ? '' : data.bsa,
+    bmi: patientNotPresent ? '' : data.bmi,
     social_habits: {
       smoking_status: smokingStatus,
       cigarettes_pack_per_day: (smokingStatus === 'cigarettes' || smokingStatus === 'former') ? cigarettesPackPerDay : '',
@@ -101,7 +106,7 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
           </label>
           {patientNotPresent && (
             <p className="hint mt-1">
-              هيتم تعطيل حقول الوزن، الطول، العلامات الحيوية، وECOG لحد ما المريض يحضر.
+              هيتم تعطيل حقول الوزن، الطول، العلامات الحيوية، وECOG لحد ما المريض يحضر — ومش هيتم حفظها.
             </p>
           )}
         </div>
@@ -229,18 +234,23 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
           <div><p className="card-title">القياسات الجسدية والتغذية</p><p className="card-subtitle">Anthropometrics &amp; Nutrition</p></div>
         </div>
         <div className="card-body">
+          {patientNotPresent && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3 text-xs text-amber-700">
+              المريض غير موجود — لن يتم حفظ الوزن والطول
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-3 mb-3">
-            <div>
+            <div style={patientNotPresent ? disabledFieldStyle : undefined}>
               <label className="field-label">الوزن (kg)<span className="el">Weight</span></label>
               <input type="number" step="0.1" {...register('weight_kg')}
                 onBlur={() => handleAnthro(weight || '', height || '')}
-                placeholder="70.0" className="input-en" disabled={patientNotPresent} />
+                placeholder="70.0" className="input-en" />
             </div>
-            <div>
+            <div style={patientNotPresent ? disabledFieldStyle : undefined}>
               <label className="field-label">الطول (cm)<span className="el">Height</span></label>
               <input type="number" step="0.5" {...register('height_cm')}
                 onBlur={() => handleAnthro(weight || '', height || '')}
-                placeholder="170" className="input-en" disabled={patientNotPresent} />
+                placeholder="170" className="input-en" />
             </div>
             <div>
               <label className="field-label">BSA (m²) — تلقائي</label>

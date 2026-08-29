@@ -31,6 +31,7 @@ const schema = z.object({
     final_pathology_report: z.string().optional().or(z.literal('')),
   }),
   history: z.object({
+    past_history: z.string().optional().or(z.literal('')),
     previous_surgeries: z.string().optional().or(z.literal('')),
     previous_chemo: z.string().optional().or(z.literal('')),
     previous_radiation: z.string().optional().or(z.literal('')),
@@ -84,11 +85,12 @@ type Props = {
   saving: boolean
   error: string | null
   patientSex?: 'M' | 'F'
-  patientNotPresent?: boolean   // ⬅️ جديد
+  patientNotPresent?: boolean
 }
 
 export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props) {
   const [selectedComorbidities, setSelectedComorbidities] = useState<string[]>([])
+  const [newComorbidity, setNewComorbidity] = useState('')
   const [selectedFamilyConditions, setSelectedFamilyConditions] = useState<string[]>([])
   const [familyHistoryOther, setFamilyHistoryOther] = useState('')
   const [selectedMedications, setSelectedMedications] = useState<string[]>([])
@@ -99,9 +101,14 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
 
   const { customTypes: customSites, addCustomType: addCustomSite } = useCustomTestTypes('primary_site')
   const { customTypes: customHistologies, addCustomType: addCustomHistology } = useCustomTestTypes('histology')
+  // نستخدم kind: 'lab' الموجود أصلاً في القيود، ونفرّق بـ category
+  // بنفس الطريقة اللي استخدمناها مع body_region تحت kind: 'imaging'
+  const { customTypes: customLabItems, addCustomType: addCustomLabItem } = useCustomTestTypes('lab')
 
   const allPrimarySites = [...PRIMARY_SITES, ...customSites.map(t => t.name)]
   const allHistologyTypes = [...HISTOLOGY_TYPES, ...customHistologies.map(t => t.name)]
+  const customComorbidities = customLabItems.filter(t => t.category === 'comorbidity').map(t => t.name)
+  const allComorbidities = [...COMORBIDITIES, ...customComorbidities]
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -134,9 +141,24 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
 
   const suggestions = PRIMARY_SITE_TESTS[primarySiteForSuggestions || ''] || PRIMARY_SITE_TESTS.default
 
+  const disabledFieldStyle: React.CSSProperties = { opacity: 0.4, pointerEvents: 'none' }
+
   function toggleComorbidity(item: string) {
     setSelectedComorbidities(prev => prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item])
   }
+
+  async function handleAddCustomComorbidity() {
+    const name = newComorbidity.trim()
+    if (!name) return
+    // لو الاسم موجود بالفعل في القايمة (أساسي أو مخصص) متعملش تكرار
+    const alreadyExists = allComorbidities.some(c => c.toLowerCase() === name.toLowerCase())
+    if (!alreadyExists) {
+      await addCustomLabItem({ name, category: 'comorbidity' })
+    }
+    toggleComorbidity(name) // يتحدد تلقائيًا بعد الإضافة
+    setNewComorbidity('')
+  }
+
   function toggleFamilyCondition(item: string) {
     setSelectedFamilyConditions(prev => prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item])
   }
@@ -187,6 +209,8 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
       },
       history: {
         ...data.history,
+        ecog_ps: patientNotPresent ? '' : data.history.ecog_ps,
+        vitals: patientNotPresent ? {} : data.history.vitals,
         comorbidities: selectedComorbidities,
         family_history_conditions: selectedFamilyConditions,
         family_history_other: selectedFamilyConditions.includes('Other') ? familyHistoryOther : '',
@@ -261,21 +285,46 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
         </div>
       </div>
 
+      {/* ── PAST MEDICAL HISTORY (narrative) ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-icon navy">📖</span>
+          <div><p className="card-title">History</p><p className="card-subtitle">التاريخ المرضي للمريض</p></div>
+        </div>
+        <div className="card-body">
+          <textarea {...register('history.past_history')} rows={4}
+            placeholder="Full narrative history — onset, progression, relevant background..."
+            className="input-en-full" />
+        </div>
+      </div>
+
       {/* ── HISTORY (Past Medical History & Ongoing Medications) ── */}
       <div className="card">
         <div className="card-header">
           <span className="card-icon navy">📋</span>
-          <div><p className="card-title">History</p><p className="card-subtitle">التاريخ المرضي السابق</p></div>
+          <div><p className="card-title">Comorbidities &amp; Medications</p><p className="card-subtitle">الأمراض المصاحبة والأدوية</p></div>
         </div>
         <div className="card-body">
           <p className="section-label-en">Comorbidities</p>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {COMORBIDITIES.map(item => (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {allComorbidities.map(item => (
               <button type="button" key={item} onClick={() => toggleComorbidity(item)}
                 className={`tag-pill ${selectedComorbidities.includes(item) ? 'tag-pill-on' : 'tag-pill-off'}`}>
                 {item}
               </button>
             ))}
+          </div>
+          <div className="flex gap-2 mb-4">
+            <input
+              value={newComorbidity}
+              onChange={e => setNewComorbidity(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomComorbidity() } }}
+              placeholder="Add a comorbidity not listed above..."
+              className="input-en-full"
+            />
+            <button type="button" onClick={handleAddCustomComorbidity} className="tag-pill tag-pill-on whitespace-nowrap">
+              + Add
+            </button>
           </div>
 
           <div className="space-y-3 mb-4">
@@ -336,10 +385,10 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
         <div className="card-body">
           {patientNotPresent && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3 text-xs text-amber-700">
-              Patient not present — vitals disabled until patient arrives
+              Patient not present — vitals will not be saved
             </div>
           )}
-          <fieldset disabled={patientNotPresent} className={patientNotPresent ? 'opacity-50 pointer-events-none' : ''}>
+          <div style={patientNotPresent ? disabledFieldStyle : undefined}>
             <div className="grid grid-cols-4 gap-3 mb-3">
               <div>
                 <label className="field-label-en">Temperature (°C)</label>
@@ -423,7 +472,7 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
                 </select>
               </div>
             </div>
-          </fieldset>
+          </div>
         </div>
       </div>
 
@@ -436,10 +485,10 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
         <div className="card-body">
           {patientNotPresent && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3 text-xs text-amber-700">
-              Patient not present — ECOG disabled until patient arrives
+              Patient not present — ECOG will not be saved
             </div>
           )}
-          <fieldset disabled={patientNotPresent} className={`flex gap-2 flex-wrap ${patientNotPresent ? 'opacity-50' : ''}`}>
+          <div style={patientNotPresent ? disabledFieldStyle : undefined} className="flex gap-2 flex-wrap">
             {['0', '1', '2', '3', '4'].map(ps => (
               <label key={ps} className="radio-opt-en">
                 <input type="radio" value={ps} {...register('history.ecog_ps')} />
@@ -447,7 +496,7 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
                 PS {ps}
               </label>
             ))}
-          </fieldset>
+          </div>
         </div>
       </div>
 
