@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { schema, type Step1Data } from '@/lib/hooks/useRegistration'
 import { GOVERNORATES, COUNTRIES } from '@/lib/constants/medicalLists'
+import { DateInputHybrid } from '@/components/shared/DateInputHybrid'
 
 
 type Props = {
@@ -163,7 +164,12 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
           <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
               <label className="field-label">تاريخ الميلاد <span className="req">*</span><span className="el">Date of birth</span></label>
-              <input type="date" {...register('date_of_birth')} className="input-en" />
+              <DateInputHybrid
+                value={watch('date_of_birth') || ''}
+                onChange={v => setValue('date_of_birth', v)}
+                className="input-en"
+              />
+
               {errors.date_of_birth && <p className="field-error">{errors.date_of_birth.message}</p>}
             </div>
             <div>
@@ -347,7 +353,11 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="field-label">تاريخ أول زيارة <span className="req">*</span><span className="el">First visit date</span></label>
-              <input type="date" {...register('first_visit_date')} className="input-en" />
+              <DateInputHybrid
+                value={watch('first_visit_date') || ''}
+                onChange={v => setValue('first_visit_date', v)}
+                className="input-en"
+              />
               {errors.first_visit_date && <p className="field-error">{errors.first_visit_date.message}</p>}
             </div>
             <div>

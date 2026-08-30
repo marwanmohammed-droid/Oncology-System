@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { PRIMARY_SITES, HISTOLOGY_TYPES, PRIMARY_SITE_HISTOLOGY_MAP } from '@/lib/constants/medicalLists'
 import { SearchableSelect } from '@/components/shared/SearchableSelect'
 import { useCustomTestTypes } from '@/lib/hooks/useCustomTestTypes'
+import { DateInputHybrid } from '@/components/shared/DateInputHybrid'
 
 const schema = z.object({
   diagnosis: z.object({
@@ -720,7 +721,11 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="field-label-en">Date of diagnosis</label>
-              <input type="date" {...register('diagnosis.date_of_diagnosis')} className="input-en-full" />
+              <DateInputHybrid
+                value={watch('diagnosis.date_of_diagnosis') || ''}
+                onChange={v => setValue('diagnosis.date_of_diagnosis', v)}
+                className="input-en-full"
+              />
             </div>
             <div>
               <label className="field-label-en">Treatment intent</label>
@@ -783,7 +788,11 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
                 <input type="number" step="0.01" value={t.result_numeric} onChange={e => updateTest('ihc', t.id, 'result_numeric', e.target.value)} placeholder="Numeric" className="input-en-full" />
                 <input value={t.result_text} onChange={e => updateTest('ihc', t.id, 'result_text', e.target.value)} placeholder="Result (text)" className="input-en-full" />
                 <div className="flex gap-1">
-                  <input type="date" value={t.test_date} onChange={e => updateTest('ihc', t.id, 'test_date', e.target.value)} className="input-en-full" />
+                  <DateInputHybrid
+                    value={t.test_date}
+                    onChange={v => updateTest('ihc', t.id, 'test_date', v)}
+                    className="input-en-full"
+                  />
                   <button type="button" onClick={() => removeTest('ihc', t.id)} className="text-red-500 text-xs px-2">✕</button>
                 </div>
               </div>
@@ -806,7 +815,11 @@ export function Step2Medical({ onSave, saving, error, patientNotPresent }: Props
                 <input type="number" step="0.01" value={t.result_numeric} onChange={e => updateTest('molecular', t.id, 'result_numeric', e.target.value)} placeholder="Numeric" className="input-en-full" />
                 <input value={t.result_text} onChange={e => updateTest('molecular', t.id, 'result_text', e.target.value)} placeholder="Result (text)" className="input-en-full" />
                 <div className="flex gap-1">
-                  <input type="date" value={t.test_date} onChange={e => updateTest('molecular', t.id, 'test_date', e.target.value)} className="input-en-full" />
+                  <DateInputHybrid
+                    value={t.test_date}
+                    onChange={v => updateTest('ihc', t.id, 'test_date', v)}
+                    className="input-en-full"
+                  />
                   <button type="button" onClick={() => removeTest('molecular', t.id)} className="text-red-500 text-xs px-2">✕</button>
                 </div>
               </div>

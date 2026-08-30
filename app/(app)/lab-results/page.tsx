@@ -2,13 +2,18 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLabResults } from '@/lib/hooks/useLabResults'
-import { LAB_PANELS } from '@/lib/constants/medicalLists'
 import { useCustomTestTypes } from '@/lib/hooks/useCustomTestTypes'
+import { LAB_PANELS, LabPanelItem } from '@/lib/constants/medicalLists'
+import { DateInputHybrid } from '@/components/shared/DateInputHybrid'
+
+type PanelRowState = { include: boolean; result_value: string; result_text: string; is_abnormal: boolean; is_critical: boolean }
+type ActivePanel = { key: string; label: string; category: string; items: LabPanelItem[]; rows: Record<string, PanelRowState> }
 
 export default function LabResultsPage() {
-    const { results, loading, saving, error, addResult, markReviewed, criticalResults, categoryLabels } = useLabResults()
+    const { results, loading, saving, error, addResult, updateResult, markReviewed, criticalResults, categoryLabels } = useLabResults()
     const [patients, setPatients] = useState<any[]>([])
     const [showNew, setShowNew] = useState(false)
+    const [editingResult, setEditingResult] = useState<any | null>(null)
     const [filter, setFilter] = useState('')
     const [categoryFilter, setCategoryFilter] = useState('')
     const supabase = createClient()
@@ -129,13 +134,18 @@ export default function LabResultsPage() {
                                         )}
                                     </td>
                                     <td style={{ padding: '12px 14px' }}>
-                                        {!r.reviewed_at ? (
-                                            <button onClick={() => markReviewed(r.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1.5px solid #dde2ee', background: '#fff', color: '#4a5580', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
-                                                وضع كمراجعة
+                                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
+                                            <button onClick={() => setEditingResult(r)} style={{ padding: '4px 10px', borderRadius: 6, border: '1.5px solid #dde2ee', background: '#fff', color: '#1a8a78', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                                                ✏️ تعديل
                                             </button>
-                                        ) : (
-                                            <span style={{ fontSize: 10, color: '#8e97b5' }}>✓ روجعت</span>
-                                        )}
+                                            {!r.reviewed_at ? (
+                                                <button onClick={() => markReviewed(r.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1.5px solid #dde2ee', background: '#fff', color: '#4a5580', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                                                    وضع كمراجعة
+                                                </button>
+                                            ) : (
+                                                <span style={{ fontSize: 10, color: '#8e97b5' }}>✓ روجعت</span>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -157,12 +167,21 @@ export default function LabResultsPage() {
                     }}
                 />
             )}
+
+            {editingResult && (
+                <EditLabResultModal
+                    result={editingResult}
+                    saving={saving}
+                    onClose={() => setEditingResult(null)}
+                    onSave={async (updates: any) => {
+                        await updateResult(editingResult.id, updates)
+                        setEditingResult(null)
+                    }}
+                />
+            )}
         </div>
     )
 }
-
-type PanelRowState = { include: boolean; result_value: string; result_text: string; is_abnormal: boolean; is_critical: boolean }
-type ActivePanel = { key: string; label: string; category: string; rows: Record<string, PanelRowState> }
 
 function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, presetPatientName }: any) {
     const { customTypes, addCustomType } = useCustomTestTypes('lab')
@@ -192,18 +211,50 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
         ? uniqueTests.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
         : []
 
+    // ── دمج عناصر البانل الثابتة مع أي تحاليل مخصصة (custom) بنفس القسم/category ──
+    function mergePanelItems(baseItems: LabPanelItem[], category: string): LabPanelItem[] {
+        const map = new Map<string, LabPanelItem>()
+        baseItems.forEach(item => map.set(item.name.toLowerCase(), item))
+        customTypes
+            .filter((t: any) => t.category === category)
+            .forEach((t: any) => {
+                const key = t.name.toLowerCase()
+                if (!map.has(key)) {
+                    map.set(key, { name: t.name, unit: t.unit || undefined, referenceRange: t.reference_range || undefined })
+                }
+            })
+        return Array.from(map.values())
+    }
+
     // ── إضافة بانل جديد للقائمة النشطة ──
     function handleAddPanel(key: string) {
         if (!key) return
         const panel = LAB_PANELS.find(p => p.key === key)
         if (!panel) return
+        const mergedItems = mergePanelItems(panel.items, panel.category)
         const rows: Record<string, PanelRowState> = {}
-        panel.items.forEach(item => {
+        mergedItems.forEach(item => {
             rows[item.name] = { include: true, result_value: '', result_text: '', is_abnormal: false, is_critical: false }
         })
-        setActivePanels(prev => [...prev, { key: panel.key, label: panel.label, category: panel.category, rows }])
+        setActivePanels(prev => [...prev, { key: panel.key, label: panel.label, category: panel.category, items: mergedItems, rows }])
         setPanelKeyToAdd('')
     }
+
+    // ── لو المستخدم فاتح بانل بالفعل وبعدين ضاف تحليل جديد (custom) بنفس category، البانل المفتوح يتحدّث تلقائيًا ──
+    useEffect(() => {
+        setActivePanels(prev => prev.map(ap => {
+            const mergedItems = mergePanelItems(ap.items, ap.category)
+            if (mergedItems.length === ap.items.length) return ap
+            const rows = { ...ap.rows }
+            mergedItems.forEach(item => {
+                if (!rows[item.name]) {
+                    rows[item.name] = { include: true, result_value: '', result_text: '', is_abnormal: false, is_critical: false }
+                }
+            })
+            return { ...ap, items: mergedItems, rows }
+        }))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [customTypes])
 
     function removePanel(key: string) {
         setActivePanels(prev => prev.filter(p => p.key !== key))
@@ -239,9 +290,7 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
 
         // من كل البانلات النشطة
         activePanels.forEach(activePanel => {
-            const panel = LAB_PANELS.find(p => p.key === activePanel.key)
-            if (!panel) return
-            panel.items.forEach(item => {
+            activePanel.items.forEach(item => {
                 const row = activePanel.rows[item.name]
                 if (row?.include) {
                     payload.push({
@@ -308,6 +357,7 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {error && <div style={{ background: '#fde8e8', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#e53e3e' }}>{error}</div>}
 
+                    {/* ── المريض + تاريخ التحليل ── */}
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
                         {presetPatientId ? (
                             <div>
@@ -330,8 +380,11 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
                         )}
                         <div>
                             <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ التحليل</label>
-                            <input type="date" value={testDate} onChange={e => setTestDate(e.target.value)}
-                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
+                            <DateInputHybrid
+                                value={testDate}
+                                onChange={setTestDate}
+                                className="hybrid-date-modal"
+                            />
                         </div>
                     </div>
 
@@ -363,47 +416,43 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
                     </div>
 
                     {/* عرض كل بانل نشط بالتفصيل */}
-                    {activePanels.map(activePanel => {
-                        const panel = LAB_PANELS.find(p => p.key === activePanel.key)
-                        if (!panel) return null
-                        return (
-                            <div key={activePanel.key} style={{ border: '1.5px solid #dde2ee', borderRadius: 10, overflow: 'hidden' }}>
-                                <div style={{ background: '#f0fdf4', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <p style={{ fontSize: 12, fontWeight: 700, color: '#1a8a78', margin: 0 }}>{panel.label}</p>
-                                    <button onClick={() => removePanel(activePanel.key)} style={{ fontSize: 10, color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer' }}>حذف القسم بالكامل</button>
-                                </div>
-                                <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    {panel.items.map(item => {
-                                        const row = activePanel.rows[item.name]
-                                        if (!row) return null
-                                        return (
-                                            <div key={item.name} style={{ border: `1.5px solid ${row.include ? '#dde2ee' : '#f0f0f0'}`, borderRadius: 8, padding: '8px 10px', opacity: row.include ? 1 : .5 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: row.include ? 6 : 0 }}>
-                                                    <input type="checkbox" checked={row.include} onChange={e => updatePanelRow(activePanel.key, item.name, 'include', e.target.checked)} />
-                                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#0b1f3a', margin: 0, flex: 1 }}>{item.name}</p>
-                                                    {item.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono' }}>{item.referenceRange} {item.unit}</span>}
-                                                </div>
-                                                {row.include && (
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 6, alignItems: 'center' }}>
-                                                        <input type="number" step="0.01" value={row.result_value} onChange={e => updatePanelRow(activePanel.key, item.name, 'result_value', e.target.value)}
-                                                            placeholder="Numeric" style={{ padding: '5px 8px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
-                                                        <input value={row.result_text} onChange={e => updatePanelRow(activePanel.key, item.name, 'result_text', e.target.value)}
-                                                            placeholder="Text" style={{ padding: '5px 8px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#b45309', whiteSpace: 'nowrap' }}>
-                                                            <input type="checkbox" checked={row.is_abnormal} onChange={e => updatePanelRow(activePanel.key, item.name, 'is_abnormal', e.target.checked)} /> غير طبيعي
-                                                        </label>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#e53e3e', whiteSpace: 'nowrap' }}>
-                                                            <input type="checkbox" checked={row.is_critical} onChange={e => updatePanelRow(activePanel.key, item.name, 'is_critical', e.target.checked)} /> حرج
-                                                        </label>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
+                    {activePanels.map(activePanel => (
+                        <div key={activePanel.key} style={{ border: '1.5px solid #dde2ee', borderRadius: 10, overflow: 'hidden' }}>
+                            <div style={{ background: '#f0fdf4', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <p style={{ fontSize: 12, fontWeight: 700, color: '#1a8a78', margin: 0 }}>{activePanel.label}</p>
+                                <button onClick={() => removePanel(activePanel.key)} style={{ fontSize: 10, color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer' }}>حذف القسم بالكامل</button>
                             </div>
-                        )
-                    })}
+                            <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {activePanel.items.map(item => {
+                                    const row = activePanel.rows[item.name]
+                                    if (!row) return null
+                                    return (
+                                        <div key={item.name} style={{ border: `1.5px solid ${row.include ? '#dde2ee' : '#f0f0f0'}`, borderRadius: 8, padding: '8px 10px', opacity: row.include ? 1 : .5 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: row.include ? 6 : 0 }}>
+                                                <input type="checkbox" checked={row.include} onChange={e => updatePanelRow(activePanel.key, item.name, 'include', e.target.checked)} />
+                                                <p style={{ fontSize: 11, fontWeight: 700, color: '#0b1f3a', margin: 0, flex: 1 }}>{item.name}</p>
+                                                {item.referenceRange && <span style={{ fontSize: 9, color: '#8e97b5', fontFamily: 'DM Mono' }}>{item.referenceRange} {item.unit}</span>}
+                                            </div>
+                                            {row.include && (
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 6, alignItems: 'center' }}>
+                                                    <input type="number" step="0.01" value={row.result_value} onChange={e => updatePanelRow(activePanel.key, item.name, 'result_value', e.target.value)}
+                                                        placeholder="Numeric" style={{ padding: '5px 8px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono' }} />
+                                                    <input value={row.result_text} onChange={e => updatePanelRow(activePanel.key, item.name, 'result_text', e.target.value)}
+                                                        placeholder="Text" style={{ padding: '5px 8px', border: '1.5px solid #dde2ee', borderRadius: 6, fontSize: 11, outline: 'none', direction: 'ltr' }} />
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#b45309', whiteSpace: 'nowrap' }}>
+                                                        <input type="checkbox" checked={row.is_abnormal} onChange={e => updatePanelRow(activePanel.key, item.name, 'is_abnormal', e.target.checked)} /> غير طبيعي
+                                                    </label>
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#e53e3e', whiteSpace: 'nowrap' }}>
+                                                        <input type="checkbox" checked={row.is_critical} onChange={e => updatePanelRow(activePanel.key, item.name, 'is_critical', e.target.checked)} /> حرج
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    ))}
 
                     {/* بحث عن تحليل مفرد (اختياري، بجانب البانلات) */}
                     <div>
@@ -530,6 +579,119 @@ function AddNewTestModal({ initialName, onClose, onAdd }: any) {
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
                     <button onClick={onClose} style={{ padding: '7px 14px', borderRadius: 7, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
                     <button onClick={() => onAdd(form)} style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>إضافة</button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function EditLabResultModal({ result, saving, onClose, onSave }: any) {
+    const [form, setForm] = useState({
+        result_value: result.result_value ?? '',
+        result_text: result.result_text ?? '',
+        unit: result.unit ?? '',
+        reference_range: result.reference_range ?? '',
+        test_date: result.test_date ?? '',
+        is_abnormal: result.is_abnormal ?? false,
+        is_critical: result.is_critical ?? false,
+        notes: result.notes ?? '',
+    })
+    const [localSaving, setLocalSaving] = useState(false)
+    const [error, setError] = useState('')
+
+    async function handleSave() {
+        setError('')
+        setLocalSaving(true)
+        try {
+            await onSave({
+                result_value: form.result_value !== '' ? parseFloat(form.result_value as any) : null,
+                result_text: form.result_text || null,
+                unit: form.unit || null,
+                reference_range: form.reference_range || null,
+                test_date: form.test_date,
+                is_abnormal: form.is_abnormal,
+                is_critical: form.is_critical,
+                notes: form.notes || null,
+            })
+        } catch (e: any) {
+            setError(e.message)
+        } finally {
+            setLocalSaving(false)
+        }
+    }
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
+            onClick={e => e.target === e.currentTarget && onClose()}>
+            <div style={{ background: '#fff', borderRadius: 18, width: 420, direction: 'rtl', fontFamily: 'Cairo' }}>
+                <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>✏️ تعديل نتيجة تحليل</p>
+                        <p style={{ fontSize: 11, color: '#8e97b5', fontFamily: 'DM Mono', margin: '4px 0 0' }}>{result.test_name}</p>
+                    </div>
+                    <button onClick={onClose} style={{ background: '#f7f8fc', border: '1px solid #dde2ee', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', fontSize: 14, color: '#8e97b5' }}>✕</button>
+                </div>
+                <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {error && <div style={{ background: '#fde8e8', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#e53e3e' }}>{error}</div>}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>القيمة الرقمية</label>
+                            <input type="number" step="0.01" value={form.result_value} onChange={e => setForm(f => ({ ...f, result_value: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', fontFamily: 'DM Mono', boxSizing: 'border-box' }} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>نتيجة نصية</label>
+                            <input value={form.result_text} onChange={e => setForm(f => ({ ...f, result_text: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>الوحدة</label>
+                            <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المعدل الطبيعي</label>
+                            <input value={form.reference_range} onChange={e => setForm(f => ({ ...f, reference_range: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ التحليل</label>
+                        <DateInputHybrid
+                            value={form.test_date}
+                            onChange={(v: string) => setForm(f => ({ ...f, test_date: v }))}
+                            className="hybrid-date-modal"
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 16 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#b45309' }}>
+                            <input type="checkbox" checked={form.is_abnormal} onChange={e => setForm(f => ({ ...f, is_abnormal: e.target.checked }))} /> غير طبيعي
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#e53e3e' }}>
+                            <input type="checkbox" checked={form.is_critical} onChange={e => setForm(f => ({ ...f, is_critical: e.target.checked }))} /> حرج
+                        </label>
+                    </div>
+
+                    <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>ملاحظات</label>
+                        <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+                            style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box', fontFamily: 'Cairo' }} />
+                    </div>
+                </div>
+                <div style={{ padding: '14px 22px', borderTop: '1px solid #eef0f6', display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
+                    <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
+                    <button onClick={handleSave} disabled={saving || localSaving} style={{
+                        padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: (saving || localSaving) ? .6 : 1,
+                    }}>
+                        {(saving || localSaving) ? 'جارٍ الحفظ...' : 'حفظ التعديلات'}
+                    </button>
                 </div>
             </div>
         </div>

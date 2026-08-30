@@ -73,6 +73,26 @@ export function useLabResults(patientId?: string) {
         }
     }
 
+    const updateResult = async (resultId: string, updates: Partial<LabResult>) => {
+        setSaving(true); setError(null)
+        try {
+            const { data, error: err } = await supabase
+                .from('lab_results')
+                .update(updates)
+                .eq('id', resultId)
+                .select('*')
+                .single()
+            if (err) throw err
+            await fetchResults()
+            return data
+        } catch (e: any) {
+            setError(e.message)
+            throw e
+        } finally {
+            setSaving(false)
+        }
+    }
+
     const markReviewed = async (resultId: string) => {
         const { data: { user } } = await supabase.auth.getUser()
         const { error: err } = await supabase
@@ -87,7 +107,7 @@ export function useLabResults(patientId?: string) {
 
     return {
         results, loading, saving, error,
-        addResult, markReviewed, criticalResults,
+        addResult, updateResult, markReviewed, criticalResults,
         categoryLabels: CATEGORY_LABELS,
         refresh: fetchResults,
     }
