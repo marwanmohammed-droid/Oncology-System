@@ -44,7 +44,7 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
   const sex = watch('sex')
 
   // ── Social Habits (moved here from Step2Medical) ──
-  const [smokingStatus, setSmokingStatus] = useState<'never' | 'cigarettes' | 'former' | 'other'>('never')
+  const [smokingStatus, setSmokingStatus] = useState<'never' | 'cigarettes' | 'former' | 'other' | 'passive'>('never')
   const [cigarettesPackPerDay, setCigarettesPackPerDay] = useState('')
   const [cigarettesDurationYears, setCigarettesDurationYears] = useState('')
   const [smokingStopped, setSmokingStopped] = useState(false)
@@ -290,6 +290,7 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
                 <option value="never">لا يوجد · Never</option>
                 <option value="cigarettes">سجائر · Cigarettes</option>
                 <option value="former">مدخن سابق · Former smoker</option>
+                <option value="passive">مدخن سلبي · Passive smoking</option>
                 <option value="other">أخرى · Other</option>
               </select>
             </div>

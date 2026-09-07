@@ -54,6 +54,14 @@ function buildMrn(firstVisitDate: string, sequence: string): string {
   return `${year}-${padded}`
 }
 
+// حول قيمة select ثلاثية الحالة ('yes' | 'no' | '' | undefined | boolean)
+// لقيمة boolean حقيقية، أو null لو مفيش اختيار فعلي
+function toTriStateBool(value: unknown): boolean | null {
+  if (value === 'yes' || value === true) return true
+  if (value === 'no' || value === false) return false
+  return null
+}
+
 export function useRegistration() {
   const [step, setStep] = useState(1)
   const [patientId, setPatientId] = useState<string | null>(null)
@@ -152,14 +160,18 @@ export function useRegistration() {
     setSaving(true); setError(null)
     try {
       const diag = data.diagnosis
-      const isDouble = diag.double_primary === 'yes'
-      const isMeta = diag.metastasis_flag === 'yes'
+
+      // ⬅️ تعديل: لو الدكتور ماختارش حاجة، نحفظ null مش false
+      // (false كانت بتتسجل زي إجابة "لأ" فعلية حتى لو الحقل فاضي)
+      const isConfirmedCancer = toTriStateBool(diag.confirmed_cancer_patient)
+      const isDouble = toTriStateBool(diag.double_primary)
+      const isMeta = toTriStateBool(diag.metastasis_flag)
 
       const { data: diagRow, error: diagErr } = await supabase
         .from('diagnoses')
         .insert({
           patient_id: patientId,
-          confirmed_cancer_patient: diag.confirmed_cancer_patient === true || diag.confirmed_cancer_patient === 'yes',
+          confirmed_cancer_patient: isConfirmedCancer,
           chief_complaint: diag.chief_complaint || null,
           double_primary: isDouble,
           primary_site: diag.primary_site || null,
@@ -239,6 +251,7 @@ export function useRegistration() {
           previous_radiation: hist.previous_radiation || null,
           drug_allergies: hist.drug_allergies || null,
           ecog_ps: hist.ecog_ps || null,
+          ocp_use: hist.ocp_use || null,
           smoking_status: hist.smoking_status || null,
           cigarettes_pack_per_day: hist.smoking_status === 'cigarettes' && hist.cigarettes_pack_per_day
             ? parseFloat(hist.cigarettes_pack_per_day) : null,
