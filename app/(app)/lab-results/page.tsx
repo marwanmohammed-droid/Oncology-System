@@ -5,6 +5,7 @@ import { useLabResults } from '@/lib/hooks/useLabResults'
 import { useCustomTestTypes } from '@/lib/hooks/useCustomTestTypes'
 import { LAB_PANELS, LabPanelItem } from '@/lib/constants/medicalLists'
 import { DateInputHybrid } from '@/components/shared/DateInputHybrid'
+import { PatientSearchSelect } from '@/components/shared/PatientSearchSelect'
 
 type PanelRowState = { include: boolean; result_value: string; result_text: string; is_abnormal: boolean; is_critical: boolean }
 type ActivePanel = { key: string; label: string; category: string; items: LabPanelItem[]; rows: Record<string, PanelRowState> }
@@ -369,13 +370,11 @@ function NewLabPanelModal({ patients, saving, onClose, onSave, presetPatientId, 
                         ) : (
                             <div>
                                 <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>المريض *</label>
-                                <select value={patientId} onChange={e => setPatientId(e.target.value)}
-                                    style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                                    <option value="">— اختر المريض —</option>
-                                    {patients.map((p: any) => (
-                                        <option key={p.id} value={p.id}>{p.first_name_ar} {p.last_name_ar} · {p.mrn}</option>
-                                    ))}
-                                </select>
+                                <PatientSearchSelect
+                                    patients={patients}
+                                    value={patientId}
+                                    onChange={setPatientId}
+                                />
                             </div>
                         )}
                         <div>
