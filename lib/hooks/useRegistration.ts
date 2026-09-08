@@ -1,7 +1,7 @@
 // ============================================================
 // lib/hooks/useRegistration.ts — Multi-step form state
 // ============================================================
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 import { z } from "zod"
@@ -48,18 +48,20 @@ export const schema = z.object({
 
 export type Step1Data = z.infer<typeof schema>
 
+// ⬅️ جديد: شكل بيانات العادات الاجتماعية (Step1Personal بيديرها كـ local state مش react-hook-form)
+export type SocialHabitsData = {
+  smoking_status: 'never' | 'cigarettes' | 'former' | 'passive' | 'other'
+  cigarettes_pack_per_day: string
+  cigarettes_duration_years: string
+  smoking_stopped: boolean
+  other_habit_details: string
+  menstrual_status: string
+}
+
 function buildMrn(firstVisitDate: string, sequence: string): string {
   const year = new Date(firstVisitDate).getFullYear()
   const padded = sequence.padStart(4, '0')
   return `${year}-${padded}`
-}
-
-// حول قيمة select ثلاثية الحالة ('yes' | 'no' | '' | undefined | boolean)
-// لقيمة boolean حقيقية، أو null لو مفيش اختيار فعلي
-function toTriStateBool(value: unknown): boolean | null {
-  if (value === 'yes' || value === true) return true
-  if (value === 'no' || value === false) return false
-  return null
 }
 
 export function useRegistration() {
@@ -70,7 +72,104 @@ export function useRegistration() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
-  // ... باقي الكود زي ما هو
+
+  // ⬅️ جديد: بيانات المريض اللي بترجع من Supabase عشان نملأ بيها Step1 لما نرجعله
+  const [step1InitialData, setStep1InitialData] = useState<Partial<Step1Data> | null>(null)
+  const [socialHabitsInitialData, setSocialHabitsInitialData] = useState<SocialHabitsData | null>(null)
+  const [loadingPatientData, setLoadingPatientData] = useState(false)
+
+  // كل مرة تتغير فيها الخطوة (تقدم أو رجوع)، نطلع لفوق الصفحة
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [step])
+
+  // ⬅️ جديد: يجيب بيانات المريض المحفوظة فعليًا من Supabase (patients + patient_identities + medical_history)
+  async function loadPatientForEdit(id: string) {
+    setLoadingPatientData(true)
+    setError(null)
+    try {
+      const { data: patient, error: pErr } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', id)
+        .single()
+      if (pErr) throw pErr
+
+      const { data: identities } = await supabase
+        .from('patient_identities')
+        .select('id_type,id_number')
+        .eq('patient_id', id)
+
+      const { data: hist } = await supabase
+        .from('medical_history')
+        .select('*')
+        .eq('patient_id', id)
+        .maybeSingle()
+
+      const nid = identities?.find(i => i.id_type === 'NID')?.id_number || ''
+      const insurance_id = identities?.find(i => i.id_type === 'INSURANCE')?.id_number || ''
+      const passport = identities?.find(i => i.id_type === 'PASSPORT')?.id_number || ''
+
+      // الرقم التسلسلي بيتفصل من MRN بصيغة "YYYY-0001"
+      const mrnParts = (patient?.mrn || '').split('-')
+      const mrnSeq = mrnParts.length > 1 ? mrnParts[1] : ''
+
+      setStep1InitialData({
+        first_name_ar: patient?.first_name_ar || '',
+        last_name_ar: patient?.last_name_ar || '',
+        first_name_en: patient?.first_name_en || '',
+        last_name_en: patient?.last_name_en || '',
+        date_of_birth: patient?.date_of_birth || '',
+        sex: patient?.sex || undefined,
+        nationality: patient?.nationality || '',
+        marital_status: patient?.marital_status || '',
+        num_children: patient?.num_children != null ? String(patient.num_children) : '',
+        occupation: patient?.occupation || '',
+        mobile_primary: patient?.mobile_primary || '',
+        email: patient?.email || '',
+        governorate: patient?.governorate || '',
+        district: patient?.district || '',
+        postal_code: patient?.postal_code || '',
+        referral_source: patient?.referral_source || 'physician',
+        referring_person_name: patient?.referring_provider || '',
+        first_visit_date: patient?.first_visit_date || '',
+        mrn_sequence: mrnSeq,
+        nid,
+        insurance_id,
+        passport,
+        weight_kg: hist?.weight_kg != null ? String(hist.weight_kg) : '',
+        height_cm: hist?.height_cm != null ? String(hist.height_cm) : '',
+        bsa: hist?.bsa != null ? String(hist.bsa) : '',
+        bmi: hist?.bmi != null ? String(hist.bmi) : '',
+        nutri_score: hist?.nutri_score != null ? String(hist.nutri_score) : '',
+      })
+
+      setSocialHabitsInitialData({
+        smoking_status: (hist?.smoking_status as SocialHabitsData['smoking_status']) || 'never',
+        cigarettes_pack_per_day: hist?.cigarettes_pack_per_day != null ? String(hist.cigarettes_pack_per_day) : '',
+        cigarettes_duration_years: hist?.cigarettes_duration_years != null ? String(hist.cigarettes_duration_years) : '',
+        smoking_stopped: !!hist?.smoking_stopped,
+        other_habit_details: hist?.other_habit_details || '',
+        menstrual_status: hist?.menstrual_status || '',
+      })
+
+      if (patient?.sex) setPatientSex(patient.sex)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoadingPatientData(false)
+    }
+  }
+
+  // ⬅️ جديد: الرجوع لـ Step1 مع جلب بيانات المريض الحالية أول ما نرجع
+  async function goBackToStep1() {
+    if (patientId) {
+      await loadPatientForEdit(patientId)
+    }
+    setStep(1)
+  }
 
   // STEP 1 — Receptionist creates patient
   async function saveStep1(data: Step1Data) {
@@ -78,45 +177,64 @@ export function useRegistration() {
     try {
       const mrn = buildMrn(data.first_visit_date, data.mrn_sequence)
 
+      // لو إحنا رجعنا من Step2 وعدّلنا بيانات نفس المريض، منعملش تحقق "الرقم مستخدم" ضد نفسه
       const { data: existing } = await supabase
         .from('patients')
         .select('id')
         .eq('mrn', mrn)
         .maybeSingle()
 
-      if (existing) {
+      if (existing && existing.id !== patientId) {
         throw new Error(`رقم الملف ${mrn} مستخدم بالفعل — من فضلك اختر رقمًا مختلفًا`)
       }
 
-      const { data: patient, error: err } = await supabase
-        .from('patients')
-        .insert({
-          mrn,
-          first_name_ar: data.first_name_ar,
-          last_name_ar: data.last_name_ar,
-          first_name_en: data.first_name_en.toLowerCase(),
-          last_name_en: data.last_name_en.toLowerCase(),
-          date_of_birth: data.date_of_birth,
-          sex: data.sex,
-          nationality: data.nationality || null,
-          marital_status: data.marital_status || null,
-          num_children: data.num_children ? parseInt(data.num_children) : null,
-          occupation: data.occupation || null,
-          mobile_primary: data.mobile_primary,
-          email: data.email || null,
-          governorate: data.governorate || null,
-          district: data.district || null,
-          referral_source: data.referral_source || null,
-          referring_provider: data.referring_person_name || null,
-        })
-        .select('id,mrn,sex')
-        .single()
+      const patientPayload = {
+        mrn,
+        first_name_ar: data.first_name_ar,
+        last_name_ar: data.last_name_ar,
+        first_name_en: data.first_name_en.toLowerCase(),
+        last_name_en: data.last_name_en.toLowerCase(),
+        date_of_birth: data.date_of_birth,
+        sex: data.sex,
+        nationality: data.nationality || null,
+        marital_status: data.marital_status || null,
+        num_children: data.num_children ? parseInt(data.num_children) : null,
+        occupation: data.occupation || null,
+        mobile_primary: data.mobile_primary,
+        email: data.email || null,
+        governorate: data.governorate || null,
+        district: data.district || null,
+        postal_code: data.postal_code || null, // ⬅️ جديد: كان بيتاخد من اليوزر ومكنش بيتحفظ
+        referral_source: data.referral_source || null,
+        referring_provider: data.referring_person_name || null,
+        first_visit_date: data.first_visit_date || null, // ⬅️ جديد: نفس الملاحظة
+      }
 
-      if (err) {
-        if ((err as any).code === '23505') {
-          throw new Error(`رقم الملف ${mrn} مستخدم بالفعل — من فضلك اختر رقمًا مختلفًا`)
+      let patient: { id: string; mrn: string; sex: 'M' | 'F' } | null = null
+
+      if (patientId) {
+        // ⬅️ رجعنا من Step2 وعدّلنا بيانات نفس المريض → update بدل insert
+        const { data: updated, error: updErr } = await supabase
+          .from('patients')
+          .update(patientPayload)
+          .eq('id', patientId)
+          .select('id,mrn,sex')
+          .single()
+        if (updErr) throw updErr
+        patient = updated
+      } else {
+        const { data: inserted, error: insErr } = await supabase
+          .from('patients')
+          .insert(patientPayload)
+          .select('id,mrn,sex')
+          .single()
+        if (insErr) {
+          if ((insErr as any).code === '23505') {
+            throw new Error(`رقم الملف ${mrn} مستخدم بالفعل — من فضلك اختر رقمًا مختلفًا`)
+          }
+          throw insErr
         }
-        throw err
+        patient = inserted
       }
 
       const identities = [
@@ -126,20 +244,22 @@ export function useRegistration() {
       ].filter(i => i.id_number?.trim())
 
       if (identities.length > 0) {
+        // نمسح القديم ونعيد الإدخال عشان نتجنب تكرار الصفوف لو عدّلنا بعد الرجوع
+        await supabase.from('patient_identities').delete().eq('patient_id', patient!.id)
         await supabase.from('patient_identities').insert(
           identities.map(i => ({ ...i, patient_id: patient!.id }))
         )
       }
 
       if (data.weight_kg || data.height_cm || data.bsa || data.bmi || data.nutri_score) {
-        await supabase.from('medical_history').insert({
+        await supabase.from('medical_history').upsert({
           patient_id: patient!.id,
           weight_kg: data.weight_kg ? parseFloat(data.weight_kg) : null,
           height_cm: data.height_cm ? parseFloat(data.height_cm) : null,
           bsa: data.bsa ? parseFloat(data.bsa) : null,
           bmi: data.bmi ? parseFloat(data.bmi) : null,
           nutri_score: data.nutri_score ? parseFloat(data.nutri_score) : null,
-        })
+        }, { onConflict: 'patient_id' })
       }
 
       setPatientId(patient!.id)
@@ -160,18 +280,14 @@ export function useRegistration() {
     setSaving(true); setError(null)
     try {
       const diag = data.diagnosis
-
-      // ⬅️ تعديل: لو الدكتور ماختارش حاجة، نحفظ null مش false
-      // (false كانت بتتسجل زي إجابة "لأ" فعلية حتى لو الحقل فاضي)
-      const isConfirmedCancer = toTriStateBool(diag.confirmed_cancer_patient)
-      const isDouble = toTriStateBool(diag.double_primary)
-      const isMeta = toTriStateBool(diag.metastasis_flag)
+      const isDouble = diag.double_primary === 'yes'
+      const isMeta = diag.metastasis_flag === 'yes'
 
       const { data: diagRow, error: diagErr } = await supabase
         .from('diagnoses')
         .insert({
           patient_id: patientId,
-          confirmed_cancer_patient: isConfirmedCancer,
+          confirmed_cancer_patient: diag.confirmed_cancer_patient === true || diag.confirmed_cancer_patient === 'yes',
           chief_complaint: diag.chief_complaint || null,
           double_primary: isDouble,
           primary_site: diag.primary_site || null,
@@ -251,12 +367,14 @@ export function useRegistration() {
           previous_radiation: hist.previous_radiation || null,
           drug_allergies: hist.drug_allergies || null,
           ecog_ps: hist.ecog_ps || null,
-          ocp_use: hist.ocp_use || null,
+          ocp_use: hist.ocp_use || null, // ⬅️ جديد: OCP (إناث فقط)
           smoking_status: hist.smoking_status || null,
-          cigarettes_pack_per_day: hist.smoking_status === 'cigarettes' && hist.cigarettes_pack_per_day
+          cigarettes_pack_per_day: (hist.smoking_status === 'cigarettes' || hist.smoking_status === 'former') && hist.cigarettes_pack_per_day
             ? parseFloat(hist.cigarettes_pack_per_day) : null,
-          cigarettes_duration_years: hist.smoking_status === 'cigarettes' && hist.cigarettes_duration_years
+          cigarettes_duration_years: (hist.smoking_status === 'cigarettes' || hist.smoking_status === 'former') && hist.cigarettes_duration_years
             ? parseFloat(hist.cigarettes_duration_years) : null,
+          smoking_stopped: (hist.smoking_status === 'cigarettes' || hist.smoking_status === 'former')
+            ? !!hist.smoking_stopped : null, // ⬅️ جديد: كان بيضيع قبل كده
           other_habit_details: hist.smoking_status === 'other' ? (hist.other_habit_details || null) : null,
           menstrual_status: hist.menstrual_status || null,
         }, { onConflict: 'patient_id' })
@@ -338,7 +456,9 @@ export function useRegistration() {
 
   return {
     step, setStep, patientId, patientSex, saving, error,
-    patientNotPresent, setPatientNotPresent, // ⬅️ جديد
+    patientNotPresent, setPatientNotPresent,
+    step1InitialData, socialHabitsInitialData, loadingPatientData, // ⬅️ جديد
+    goBackToStep1, // ⬅️ جديد
     saveStep1, saveStep2, saveStep3, signConsent, completeRegistration,
   }
 }

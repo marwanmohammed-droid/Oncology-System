@@ -87,7 +87,7 @@ type Props = {
   error: string | null
   patientSex?: 'M' | 'F'
   patientNotPresent?: boolean
-  onBack?: () => void   // ⬅️ جديد
+  onBack?: () => void
 }
 
 export function Step2Medical({ onSave, saving, error, patientSex, patientNotPresent, onBack }: Props) {
@@ -100,7 +100,7 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
   const [molecularTests, setMolecularTests] = useState<PathologyTest[]>([])
   const [priorProtocols, setPriorProtocols] = useState<PriorProtocol[]>([])
   const [oncologyFhEntries, setOncologyFhEntries] = useState<OncologyFHEntry[]>([])
-  const [ocpUse, setOcpUse] = useState('')
+  const [ocpUse, setOcpUse] = useState('') // ⬅️ جديد: Oral Contraceptive Pills (إناث فقط)
 
   const { customTypes: customSites, addCustomType: addCustomSite } = useCustomTestTypes('primary_site')
   const { customTypes: customHistologies, addCustomType: addCustomHistology } = useCustomTestTypes('histology')
@@ -113,13 +113,11 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
   const customComorbidities = customLabItems.filter(t => t.category === 'comorbidity').map(t => t.name)
   const allComorbidities = [...COMORBIDITIES, ...customComorbidities]
 
-  // ── مفيش أي defaultValues بتفرض قيمة على المستخدم ──
-  // كل الحقول بتفضل فاضية لحد ما الدكتور فعلاً يختار/يكتب حاجة فيها
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      diagnosis: {},
-      history: {},
+      diagnosis: { confirmed_cancer_patient: 'no', double_primary: 'no', metastasis_flag: 'no', sample_type: 'tissue' },
+      history: { ecog_ps: '0', previous_chemo: 'none', previous_radiation: 'none' },
     },
   })
 
@@ -210,9 +208,7 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
     return onSave({
       diagnosis: {
         ...data.diagnosis,
-        confirmed_cancer_patient: data.diagnosis.confirmed_cancer_patient
-          ? data.diagnosis.confirmed_cancer_patient === 'yes'
-          : undefined,
+        confirmed_cancer_patient: data.diagnosis.confirmed_cancer_patient === 'yes',
       },
       history: {
         ...data.history,
@@ -222,7 +218,7 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
         family_history_conditions: selectedFamilyConditions,
         family_history_other: selectedFamilyConditions.includes('Other') ? familyHistoryOther : '',
         ongoing_medications: selectedMedications,
-        ocp_use: patientSex === 'F' ? ocpUse : '',   // ⬅️ ج
+        ocp_use: patientSex === 'F' ? ocpUse : '', // ⬅️ جديد
         oncology_fh_details: oncologyFhEntries
           .filter(e => e.person)
           .map(e => ({ person: e.person, type: e.type })),
@@ -251,7 +247,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
         </div>
         <div className="card-body">
           <select {...register('diagnosis.confirmed_cancer_patient')} className="input-en-full">
-            <option value="">— Not specified —</option>
             <option value="no">No</option>
             <option value="yes">Yes</option>
           </select>
@@ -346,7 +341,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
               <div>
                 <label className="field-label-en">Previous chemotherapy</label>
                 <select {...register('history.previous_chemo')} className="input-en-full">
-                  <option value="">— Not specified —</option>
                   <option value="none">None</option>
                   <option value="adjuvant">Yes — adjuvant</option>
                   <option value="neoadjuvant">Yes — neoadjuvant</option>
@@ -357,7 +351,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
               <div>
                 <label className="field-label-en">Radiation history</label>
                 <select {...register('history.previous_radiation')} className="input-en-full">
-                  <option value="">— Not specified —</option>
                   <option value="none">None</option>
                   <option value="same_site">Yes — same site</option>
                   <option value="different_site">Yes — different site</option>
@@ -369,23 +362,19 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
               <label className="field-label-en">Known drug allergies</label>
               <input {...register('history.drug_allergies')} placeholder="NKDA if none" className="input-en-full" />
             </div>
-          </div>
 
-          <div>
-            <label className="field-label-en">Known drug allergies</label>
-            <input {...register('history.drug_allergies')} placeholder="NKDA if none" className="input-en-full" />
+            {/* ── OCP (Oral Contraceptive Pills) — إناث فقط ── */}
+            {patientSex === 'F' && (
+              <div>
+                <label className="field-label-en">Oral Contraceptive Pills (OCP)</label>
+                <select value={ocpUse} onChange={e => setOcpUse(e.target.value)} className="input-en-full">
+                  <option value="">—</option>
+                  <option value="yes">Yes — currently taking</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+            )}
           </div>
-
-          {patientSex === 'F' && (
-            <div className="mt-3">
-              <label className="field-label-en">Oral Contraceptive Pills (OCP)</label>
-              <select value={ocpUse} onChange={e => setOcpUse(e.target.value)} className="input-en-full">
-                <option value="">—</option>
-                <option value="yes">Yes — currently taking</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-          )}
 
           <p className="section-label-en">Ongoing Medications</p>
           <div className="flex flex-wrap gap-2 mb-3">
@@ -589,7 +578,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
             <div>
               <label className="field-label-en">Double primary?</label>
               <select {...register('diagnosis.double_primary')} className="input-en-full">
-                <option value="">— Not specified —</option>
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
@@ -677,7 +665,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
             <div>
               <label className="field-label-en">2ry site (metastasis)?</label>
               <select {...register('diagnosis.metastasis_flag')} className="input-en-full">
-                <option value="">— Not specified —</option>
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
@@ -712,7 +699,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
             <div>
               <label className="field-label-en">Laterality</label>
               <select {...register('diagnosis.laterality')} className="input-en-full">
-                <option value="">—</option>
                 <option value="N/A">N/A</option>
                 <option value="Left">Left</option>
                 <option value="Right">Right</option>
@@ -759,7 +745,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
             <div>
               <label className="field-label-en">Treatment intent</label>
               <select {...register('diagnosis.treatment_intent')} className="input-en-full">
-                <option value="">— Not specified —</option>
                 <option value="curative">Curative</option>
                 <option value="neoadjuvant">Neoadjuvant</option>
                 <option value="adjuvant">Adjuvant</option>
@@ -783,7 +768,6 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
             <div>
               <label className="field-label-en">Sample type</label>
               <select {...register('diagnosis.sample_type')} className="input-en-full">
-                <option value="">— Not specified —</option>
                 <option value="tissue">Tissue</option>
                 <option value="liquid">Liquid</option>
               </select>
@@ -866,7 +850,21 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
       </div>
 
       <div className="flex justify-between items-center pt-2">
-        <p className="text-xs text-slate-400 font-mono">All fields in English · No mandatory fields</p>
+        <div className="flex items-center gap-4">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              Back to Personal Info
+            </button>
+          )}
+          <p className="text-xs text-slate-400 font-mono m-0">All fields in English · No mandatory fields</p>
+        </div>
         <button type="submit" disabled={saving} className="btn-primary">
           {saving ? 'Saving...' : 'Save & Complete Registration'}
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>

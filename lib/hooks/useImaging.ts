@@ -78,6 +78,25 @@ export function useImaging(patientId?: string) {
 
     useEffect(() => { fetchStudies() }, [fetchStudies])
 
+    const addStudy = async (input: Partial<ImagingStudy>) => {
+        setSaving(true); setError(null)
+        try {
+            const { data, error: err } = await supabase
+                .from('imaging_studies')
+                .insert(input)
+                .select('*')
+                .single()
+            if (err) throw err
+            await fetchStudies()
+            return data
+        } catch (e: any) {
+            setError(e.message)
+            throw e
+        } finally {
+            setSaving(false)
+        }
+    }
+
     const updateStudy = async (studyId: string, updates: Partial<ImagingStudy>) => {
         setSaving(true); setError(null)
         try {
@@ -86,7 +105,7 @@ export function useImaging(patientId?: string) {
                 .update(updates)
                 .eq('id', studyId)
             if (err) throw err
-            await fetchStudies() // أو اسم دالة الجلب عندك
+            await fetchStudies()
         } catch (e: any) {
             setError(e.message)
             throw e
@@ -94,7 +113,6 @@ export function useImaging(patientId?: string) {
             setSaving(false)
         }
     }
-    // وضيفها في الـ return: updateStudy,
 
     const updateStatus = async (studyId: string, status: string) => {
         const { error: err } = await supabase
@@ -129,7 +147,7 @@ export function useImaging(patientId?: string) {
 
     return {
         studies, loading, saving, error,
-        updateStudy, updateStatus, addReport,
+        addStudy, updateStudy, updateStatus, addReport,
         typeLabels: IMAGING_TYPE_LABELS,
         getTypeLabel: getImagingTypeLabel,
         responseLabels: RESPONSE_LABELS,

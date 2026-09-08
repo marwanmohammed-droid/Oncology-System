@@ -1,8 +1,8 @@
 'use client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
-import { schema, type Step1Data } from '@/lib/hooks/useRegistration'
+import { useEffect, useState } from 'react'
+import { schema, type Step1Data, type SocialHabitsData } from '@/lib/hooks/useRegistration'
 import { GOVERNORATES, COUNTRIES } from '@/lib/constants/medicalLists'
 import { DateInputHybrid } from '@/components/shared/DateInputHybrid'
 
@@ -13,10 +13,17 @@ type Props = {
   error: string | null
   patientNotPresent: boolean
   onPatientNotPresentChange: (v: boolean) => void
+  // ⬅️ جديد: بيانات المريض المحفوظة فعليًا (بترجع لما نرجع من Step2 لـ Step1)
+  initialData?: Partial<Step1Data> | null
+  initialSocialHabits?: SocialHabitsData | null
+  loadingInitialData?: boolean
 }
 
-export function Step1Personal({ onSave, saving, error, patientNotPresent, onPatientNotPresentChange }: Props) {
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Step1Data>({
+export function Step1Personal({
+  onSave, saving, error, patientNotPresent, onPatientNotPresentChange,
+  initialData, initialSocialHabits, loadingInitialData,
+}: Props) {
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<Step1Data>({
     resolver: zodResolver(schema),
     defaultValues: {
       first_name_ar: '',
@@ -44,12 +51,60 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
   const sex = watch('sex')
 
   // ── Social Habits (moved here from Step2Medical) ──
-  const [smokingStatus, setSmokingStatus] = useState<'never' | 'cigarettes' | 'former' | 'other' | 'passive'>('never')
+  const [smokingStatus, setSmokingStatus] = useState<'never' | 'cigarettes' | 'former' | 'passive' | 'other'>('never')
   const [cigarettesPackPerDay, setCigarettesPackPerDay] = useState('')
   const [cigarettesDurationYears, setCigarettesDurationYears] = useState('')
   const [smokingStopped, setSmokingStopped] = useState(false)
   const [otherHabitDetails, setOtherHabitDetails] = useState('')
   const [menstrualStatus, setMenstrualStatus] = useState('')
+
+  // ⬅️ جديد: لما توصل بيانات المريض (بعد الرجوع من Step2) نملأ بيها الفورم فعليًا
+  useEffect(() => {
+    if (initialData) {
+      reset({
+        first_name_ar: initialData.first_name_ar || '',
+        last_name_ar: initialData.last_name_ar || '',
+        first_name_en: initialData.first_name_en || '',
+        last_name_en: initialData.last_name_en || '',
+        date_of_birth: initialData.date_of_birth || '',
+        sex: initialData.sex as any,
+        nationality: initialData.nationality || 'Egyptian',
+        marital_status: initialData.marital_status || '',
+        num_children: initialData.num_children || '',
+        occupation: initialData.occupation || '',
+        mobile_primary: initialData.mobile_primary || '',
+        email: initialData.email || '',
+        governorate: initialData.governorate || '',
+        district: initialData.district || '',
+        postal_code: initialData.postal_code || '',
+        referral_source: initialData.referral_source || 'physician',
+        referring_person_name: initialData.referring_person_name || '',
+        first_visit_date: initialData.first_visit_date || '',
+        mrn_sequence: initialData.mrn_sequence || '',
+        nid: initialData.nid || '',
+        insurance_id: initialData.insurance_id || '',
+        passport: initialData.passport || '',
+        weight_kg: initialData.weight_kg || '',
+        height_cm: initialData.height_cm || '',
+        bsa: initialData.bsa || '',
+        bmi: initialData.bmi || '',
+        nutri_score: initialData.nutri_score || '',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData])
+
+  // ⬅️ جديد: تعبئة العادات الاجتماعية (state محلي، مش جزء من react-hook-form)
+  useEffect(() => {
+    if (initialSocialHabits) {
+      setSmokingStatus(initialSocialHabits.smoking_status || 'never')
+      setCigarettesPackPerDay(initialSocialHabits.cigarettes_pack_per_day || '')
+      setCigarettesDurationYears(initialSocialHabits.cigarettes_duration_years || '')
+      setSmokingStopped(!!initialSocialHabits.smoking_stopped)
+      setOtherHabitDetails(initialSocialHabits.other_habit_details || '')
+      setMenstrualStatus(initialSocialHabits.menstrual_status || '')
+    }
+  }, [initialSocialHabits])
 
   const referralNameLabel =
     referralSource === 'physician' ? 'اسم الطبيب المحوّل' :
@@ -91,6 +146,13 @@ export function Step1Personal({ onSave, saving, error, patientNotPresent, onPati
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
           {error}
+        </div>
+      )}
+
+      {/* ⬅️ جديد: مؤشر تحميل بيانات المريض لما نرجع من Step2 */}
+      {loadingInitialData && (
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 text-sm text-teal-700">
+          جارٍ تحميل بيانات المريض...
         </div>
       )}
 

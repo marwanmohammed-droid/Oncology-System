@@ -14,6 +14,8 @@ export default function NewPatientPage() {
   const {
     step, patientId, patientSex, saving, error,
     patientNotPresent, setPatientNotPresent,
+    step1InitialData, socialHabitsInitialData, loadingPatientData, // ⬅️ جديد
+    goBackToStep1, // ⬅️ جديد
     saveStep1, saveStep2,
   } = useRegistration()
 
@@ -72,6 +74,9 @@ export default function NewPatientPage() {
           error={error}
           patientNotPresent={patientNotPresent}
           onPatientNotPresentChange={setPatientNotPresent}
+          initialData={step1InitialData}
+          initialSocialHabits={socialHabitsInitialData}
+          loadingInitialData={loadingPatientData}
         />
       )}
       {step === 2 && (
@@ -81,6 +86,7 @@ export default function NewPatientPage() {
           error={error}
           patientSex={patientSex ?? undefined}
           patientNotPresent={patientNotPresent}
+          onBack={goBackToStep1}
         />
       )}
     </div>
