@@ -60,6 +60,15 @@ export default function ImagingPage() {
     const withContrastCount = studies.filter(s => (s.notes || '').includes('بالصبغة')).length
     const progressiveCount = studies.filter(s => s.response_assessment === 'progressive_disease').length
 
+    // ── توزيع عدد الدراسات حسب نوع الأشعة (CT, MRI, PET/CT...) ──
+    // بيتحسب ديناميكيًا من البيانات الفعلية، بما فيها الأنواع المخصصة (custom_type_label)
+    const typeCounts = studies.reduce((acc: Record<string, number>, s) => {
+        const label = getTypeLabel(s)
+        acc[label] = (acc[label] || 0) + 1
+        return acc
+    }, {})
+    const sortedTypeCounts = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])
+
     return (
         <div style={{ padding: 32, fontFamily: 'Cairo, sans-serif', direction: 'rtl' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -84,7 +93,7 @@ export default function ImagingPage() {
             )}
 
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                 {[
                     { label: 'إجمالي الدراسات', value: studies.length, color: '#0b1f3a', bg: '#f7f8fc' },
                     { label: 'دراسات أساسية', value: studies.filter(s => s.is_baseline).length, color: '#9333ea', bg: '#faf5ff' },
@@ -98,6 +107,32 @@ export default function ImagingPage() {
                     </div>
                 ))}
             </div>
+
+            {/* توزيع حسب نوع الأشعة */}
+            {sortedTypeCounts.length > 0 && (
+                <div style={{ background: '#fff', border: '1.5px solid #dde2ee', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#4a5580', margin: '0 0 10px' }}>
+                        📊 توزيع الدراسات حسب النوع
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {sortedTypeCounts.map(([label, count]) => (
+                            <div key={label} style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '6px 12px', borderRadius: 20,
+                                background: '#f7f8fc', border: '1px solid #dde2ee',
+                            }}>
+                                <span style={{ fontSize: 11, color: '#0b1f3a', fontWeight: 600 }}>{label}</span>
+                                <span style={{
+                                    fontSize: 10, fontFamily: 'DM Mono', fontWeight: 700, color: '#1a8a78',
+                                    background: '#e6f7f4', borderRadius: 10, padding: '1px 7px', minWidth: 18, textAlign: 'center',
+                                }}>
+                                    {count}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Filters */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>

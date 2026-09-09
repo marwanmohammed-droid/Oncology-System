@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useFullDataExport } from '@/lib/hooks/useFullDataExport'
 import { usePatientRegistry, type RegistryEntry, type RegistryStats } from '@/lib/hooks/usePatientRegistry'
 
 const PLAN_STATUS_AR: Record<string, string> = {
@@ -22,6 +23,7 @@ export default function RegistryPage() {
     const [search, setSearch] = useState('')
     const [exporting, setExporting] = useState(false)
     const [view, setView] = useState<'dashboard' | 'table'>('dashboard')
+    const { exportAllData, exporting: fullExporting, progress: fullExportProgress } = useFullDataExport()
 
     useEffect(() => {
         async function loadOptions() {
@@ -72,6 +74,13 @@ export default function RegistryPage() {
                         borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: (exporting || filtered.length === 0) ? .6 : 1,
                     }}>
                         ⬇️ تصدير بيانات البحث (CSV)
+                    </button>
+
+                    <button onClick={exportAllData} disabled={fullExporting} style={{
+                        padding: '9px 18px', background: '#0b1f3a', color: '#fff', border: 'none',
+                        borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: fullExporting ? .6 : 1,
+                    }}>
+                        {fullExporting ? (fullExportProgress || 'جارٍ التصدير...') : '📊 تصدير كل البيانات (Excel كامل)'}
                     </button>
                 </div>
             </div>
