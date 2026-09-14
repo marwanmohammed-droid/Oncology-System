@@ -66,10 +66,25 @@ export default function PatientsPage() {
     }
   }
 
+  // ⬅️ بيوحّد أرقام الموبايل (بيشيل المسافات والشرطات) عشان البحث يطابق حتى لو المستخدم كتب الرقم بصيغة مختلفة
+  function normalizePhone(v: string) {
+    return v.replace(/[\s\-()]/g, '')
+  }
+
   let filtered = visiblePatients.filter(p => {
     if (search) {
-      const matchesName = p.first_name_ar.includes(search) || p.last_name_ar.includes(search) || p.first_name_en.toLowerCase().includes(search.toLowerCase())
-      if (!matchesName) return false
+      const q = search.trim().toLowerCase()
+      const qPhone = normalizePhone(search.trim())
+      const matchesName =
+        p.first_name_ar.includes(search) ||
+        p.last_name_ar.includes(search) ||
+        `${p.first_name_ar} ${p.last_name_ar}`.includes(search) ||
+        p.first_name_en.toLowerCase().includes(q) ||
+        p.last_name_en.toLowerCase().includes(q) ||
+        `${p.first_name_en} ${p.last_name_en}`.toLowerCase().includes(q)
+      const matchesMrn = p.mrn.toLowerCase().includes(q)
+      const matchesMobile = qPhone.length > 0 && normalizePhone(p.mobile_primary || '').includes(qPhone)
+      if (!matchesName && !matchesMrn && !matchesMobile) return false
     }
     if (mrnSearch && !p.mrn.toLowerCase().includes(mrnSearch.toLowerCase())) return false
     if (nationalityFilter && p.nationality !== nationalityFilter) return false
@@ -148,13 +163,13 @@ export default function PatientsPage() {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 14px', background: '#fff',
-          border: '1.5px solid #dde2ee', borderRadius: 9, maxWidth: 300, flex: 1,
+          border: '1.5px solid #dde2ee', borderRadius: 9, maxWidth: 340, flex: 1,
         }}>
           <span style={{ color: '#8e97b5' }}>🔍</span>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="بحث بالاسم..."
+            placeholder="بحث بالاسم أو رقم الملف (MRN) أو الموبايل..."
             style={{ border: 'none', outline: 'none', fontSize: 13, fontFamily: 'Cairo', flex: 1, direction: 'rtl' }}
           />
         </div>

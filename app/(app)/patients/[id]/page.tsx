@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { ProtocolHistoryPanel } from '@/components/patients/ProtocolHistoryPanel'
 import { useMedicalRecord } from '@/lib/hooks/useMedicalRecord'
 import { VitalSignsPanel } from '@/components/patients/VitalSignsPanel'
 import { ProgressNotesPanel } from '@/components/patients/ProgressNotesPanel'
@@ -302,6 +303,10 @@ export default function PatientProfilePage() {
             {/* Vital Signs */}
             <div style={{ gridColumn: '1 / -1' }}>
               <VitalSignsPanel patientId={id as string} />
+            </div>
+
+            <div style={{ gridColumn: '1 / -1' }}>
+              <ProtocolHistoryPanel patientId={id as string} />
             </div>
 
           </div>

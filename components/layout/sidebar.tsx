@@ -29,19 +29,17 @@ const NAV: NavGroup[] = [
       { href: '/chemo-sessions', icon: '💊', labelAr: 'جلسات الكيماوي', labelEn: 'Chemo Sessions' },
       { href: '/protocols', icon: '🧬', labelAr: 'البروتوكولات', labelEn: 'Protocols' },
       { href: '/treatment-plans/new', icon: '📝', labelAr: 'خطة علاج جديدة', labelEn: 'New Treatment Plan' },
-      { href: '/reports', icon: '📊', labelAr: 'التقارير', labelEn: 'Reports' },
       { href: '/imaging', icon: '📷', labelAr: 'الأشعة والتصوير', labelEn: 'Imaging', doctorOnly: true },
+      { href: '/lab-results', icon: '🧪', labelAr: 'نتائج المختبر', labelEn: 'Lab Results', doctorOnly: true },
     ]
   },
   {
     group: 'Clinical', items: [
       { href: '/clinical-trials', icon: '🔬', labelAr: 'الدراسات السريرية', labelEn: 'Clinical Trials', doctorOnly: true },
       { href: '/patient-portal', icon: '🏠', labelAr: 'بوابة المريض', labelEn: 'Patient Portal' },
-      { href: '/lab-results', icon: '🧪', labelAr: 'نتائج المختبر', labelEn: 'Lab Results', doctorOnly: true },
       { href: '/registry', icon: '📇', labelAr: 'فهرس المرضى', labelEn: 'Patient Registry', doctorOnly: true },
     ]
   },
-  // أضف بعد جروب 'Clinical' مباشرة:
   {
     group: 'Pharmacy', items: [
       { href: '/inventory', icon: '💉', labelAr: 'مخزون الأدوية', labelEn: 'Drug Inventory' },

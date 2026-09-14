@@ -47,11 +47,11 @@ const schema = z.object({
       respiratory_rate: z.string().optional().or(z.literal('')),
       spo2_pct: z.string().optional().or(z.literal('')),
       pain_score: z.string().optional().or(z.literal('')),
-      pallor: z.enum(['yes', 'no']).optional(),
-      jaundice: z.enum(['yes', 'no']).optional(),
-      hbv_status: z.enum(['positive', 'negative', 'na']).optional(),
-      hcv_status: z.enum(['positive', 'negative', 'na']).optional(),
-      hiv_status: z.enum(['positive', 'negative', 'na']).optional(),
+      pallor: z.enum(['yes', 'no']).optional().or(z.literal('')),        // ⬅️ تعديل
+      jaundice: z.enum(['yes', 'no']).optional().or(z.literal('')),      // ⬅️ تعديل
+      hbv_status: z.enum(['positive', 'negative', 'na']).optional().or(z.literal('')),  // ⬅️ تعديل
+      hcv_status: z.enum(['positive', 'negative', 'na']).optional().or(z.literal('')),  // ⬅️ تعديل
+      hiv_status: z.enum(['positive', 'negative', 'na']).optional().or(z.literal('')),  // ⬅️ تعديل
     }).optional(),
   }),
 })

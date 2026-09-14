@@ -65,27 +65,34 @@ export function usePatientRegistry() {
         setLoading(true)
         try {
             // ── نبدأ من patients عشان محدش يختفي حتى لو معندوش تشخيص بعد ──
-            const { data: patients } = await supabase
+            const { data: patientRows } = await supabase
                 .from('patients')
                 .select('id, mrn, first_name_ar, last_name_ar, date_of_birth, sex, nationality, created_at, archived_at')
                 .is('archived_at', null)
 
-            if (!patients?.length) { setLoading(false); return [] }
-            const patientIds = patients.map(p => p.id)
+            if (!patientRows?.length) { setLoading(false); return [] }
+            const patientIds = patientRows.map(p => p.id)
 
-            const [{ data: diagnoses }, { data: plans }, { data: histories }] = await Promise.all([
-                supabase.from('diagnoses')
-                    .select('patient_id, primary_site, stage, histology, is_metastatic, metastatic_sites, created_at')
-                    .in('patient_id', patientIds)
-                    .order('created_at', { ascending: false }),
-                supabase.from('treatment_plans')
-                    .select('patient_id, protocol_name, status, completed_cycles, planned_cycles, regimen:chemo_regimens(regimen_class)')
-                    .in('patient_id', patientIds)
-                    .order('created_at', { ascending: false }),
-                supabase.from('medical_history')
-                    .select('patient_id, ecog_ps, smoking_status')
-                    .in('patient_id', patientIds),
+            const [{ data: diagnoses }, { data: plans }, { data: histories }, { data: protocolHistory }] = await Promise.all([supabase.from('diagnoses')
+                .select('patient_id, primary_site, stage, histology, is_metastatic, metastatic_sites, created_at')
+                .in('patient_id', patientIds)
+                .order('created_at', { ascending: false }),
+            supabase.from('treatment_plans')
+                .select('patient_id, protocol_name, status, completed_cycles, planned_cycles, regimen:chemo_regimens(regimen_class)')
+                .in('patient_id', patientIds)
+                .order('created_at', { ascending: false }),
+            supabase.from('medical_history')
+                .select('patient_id, ecog_ps, smoking_status')
+                .in('patient_id', patientIds),
+            supabase.from('prior_treatment_protocols')
+                .select('patient_id, protocol_name, regimen_class, is_ongoing')
+                .in('patient_id', patientIds),
             ])
+            const protocolHistoryByPatient: Record<string, any> = {}
+                ; (protocolHistory || []).forEach(p => {
+                    if (!protocolHistoryByPatient[p.patient_id]) protocolHistoryByPatient[p.patient_id] = p
+                    else if (p.is_ongoing) protocolHistoryByPatient[p.patient_id] = p
+                })
 
             // آخر تشخيص لكل مريض (لو موجود)
             const latestDiagByPatient: Record<string, any> = {}
@@ -102,9 +109,10 @@ export function usePatientRegistry() {
             const historyByPatient: Record<string, any> = {}
                 ; (histories || []).forEach(h => { historyByPatient[h.patient_id] = h })
 
-            let entries: RegistryEntry[] = patients.map(pt => {
+            let entries: RegistryEntry[] = patientRows.map(pt => {
                 const diag = latestDiagByPatient[pt.id] ?? null
                 const plan = planByPatient[pt.id]
+                const protoHist = protocolHistoryByPatient[pt.id]
                 const hist = historyByPatient[pt.id]
                 const age = Math.floor((Date.now() - new Date(pt.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
 
@@ -121,8 +129,8 @@ export function usePatientRegistry() {
                     histology: diag?.histology ?? null,
                     isMetastatic: !!diag?.is_metastatic,
                     metastaticSites: diag?.metastatic_sites ?? null,
-                    activeProtocol: plan?.protocol_name ?? null,
-                    protocolClass: (plan?.regimen as any)?.regimen_class ?? null,
+                    activeProtocol: plan?.protocol_name ?? protoHist?.protocol_name ?? null,
+                    protocolClass: (plan?.regimen as any)?.regimen_class ?? protoHist?.regimen_class ?? null,
                     planStatus: plan?.status ?? null,
                     completedCycles: plan?.completed_cycles ?? null,
                     plannedCycles: plan?.planned_cycles ?? null,
