@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useRole } from '@/lib/hooks/useRole'
 
 type Patient = {
   id: string
@@ -16,6 +17,7 @@ type Patient = {
   nationality: string | null
   created_at: string
   archived_at: string | null
+  registration_status?: 'pending_medical' | 'confirmed' | null
   diagnoses?: { double_primary: boolean; is_metastatic: boolean }[]
 }
 
@@ -33,12 +35,13 @@ export default function PatientsPage() {
   const [showArchived, setShowArchived] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const supabase = createClient()
+  const { canEditMedical } = useRole()
 
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from('patients')
-        .select('id, mrn, first_name_ar, last_name_ar, first_name_en, last_name_en, mobile_primary, date_of_birth, sex, nationality, created_at, archived_at, diagnoses(double_primary, is_metastatic)')
+        .select('id, mrn, first_name_ar, last_name_ar, first_name_en, last_name_en, mobile_primary, date_of_birth, sex, nationality, created_at, archived_at, registration_status, diagnoses(double_primary, is_metastatic)')
         .order('created_at', { ascending: false })
       setPatients((data as any) || [])
       setLoading(false)
@@ -278,6 +281,11 @@ export default function PatientsPage() {
                             {p.first_name_en} {p.last_name_en}
                           </p>
                         </div>
+                        {p.registration_status === 'pending_medical' && (
+                          <span title="بانتظار إدخال البيانات الطبية وتأكيدها من الطبيب" style={{ fontSize: 9, padding: '2px 8px', borderRadius: 20, background: '#fff7e6', color: '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            بانتظار الطبيب
+                          </span>
+                        )}
                         {flags.doublePrimary && (
                           <span title="Double Primary" style={{ fontSize: 8, padding: '2px 6px', borderRadius: 20, background: '#faf5ff', color: '#9333ea', fontWeight: 700, whiteSpace: 'nowrap' }}>
                             2× Primary
@@ -302,7 +310,15 @@ export default function PatientsPage() {
                     <td style={{ padding: '12px 14px', fontFamily: 'DM Mono', fontSize: 10, color: '#8e97b5' }}>
                       {new Date(p.created_at).toLocaleDateString('ar-EG')}
                     </td>
-                    <td style={{ padding: '12px 14px' }}>
+                    <td style={{ padding: '12px 14px', display: 'flex', gap: 6 }}>
+                      {canEditMedical && p.registration_status === 'pending_medical' && (
+                        <Link href={`/patients/new?patientId=${p.id}`} style={{
+                          padding: '5px 12px', borderRadius: 6, background: '#1a8a78',
+                          color: '#fff', textDecoration: 'none', fontSize: 11, fontWeight: 700,
+                        }}>
+                          إكمال البيانات الطبية
+                        </Link>
+                      )}
                       <Link href={`/patients/${p.id}`} style={{
                         padding: '5px 12px', borderRadius: 6,
                         border: '1.5px solid #dde2ee', color: '#4a5580',
