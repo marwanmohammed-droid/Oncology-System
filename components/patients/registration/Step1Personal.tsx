@@ -17,11 +17,12 @@ type Props = {
   initialData?: Partial<Step1Data> | null
   initialSocialHabits?: SocialHabitsData | null
   loadingInitialData?: boolean
+  isReceptionist?: boolean
 }
 
 export function Step1Personal({
   onSave, saving, error, patientNotPresent, onPatientNotPresentChange,
-  initialData, initialSocialHabits, loadingInitialData,
+  initialData, initialSocialHabits, loadingInitialData, isReceptionist,
 }: Props) {
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<Step1Data>({
     resolver: zodResolver(schema),
@@ -541,7 +542,7 @@ export function Step1Personal({
       <div className="flex justify-between items-center pt-2">
         <p className="text-xs text-slate-400 font-mono">* الحقول الأساسية فقط إلزامية</p>
         <button type="submit" disabled={saving} className="btn-primary">
-          {saving ? 'جارٍ الحفظ...' : 'حفظ والمتابعة للبيانات الطبية'}
+          {saving ? 'جارٍ الحفظ...' : isReceptionist ? 'حفظ بيانات المريض' : 'حفظ والمتابعة للبيانات الطبية'}
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
         </button>
       </div>

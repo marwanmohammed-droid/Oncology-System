@@ -832,7 +832,7 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
                 <div className="flex gap-1">
                   <DateInputHybrid
                     value={t.test_date}
-                    onChange={v => updateTest('ihc', t.id, 'test_date', v)}
+                    onChange={v => updateTest('molecular', t.id, 'test_date', v)}
                     className="input-en-full"
                   />
                   <button type="button" onClick={() => removeTest('molecular', t.id)} className="text-red-500 text-xs px-2">✕</button>
@@ -866,7 +866,7 @@ export function Step2Medical({ onSave, saving, error, patientSex, patientNotPres
           <p className="text-xs text-slate-400 font-mono m-0">All fields in English · No mandatory fields</p>
         </div>
         <button type="submit" disabled={saving} className="btn-primary">
-          {saving ? 'Saving...' : 'Save & Complete Registration'}
+          {saving ? 'Saving...' : 'Save & Confirm'}
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
         </button>
       </div>

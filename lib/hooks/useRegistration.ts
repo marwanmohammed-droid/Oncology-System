@@ -64,7 +64,7 @@ function buildMrn(firstVisitDate: string, sequence: string): string {
   return `${year}-${padded}`
 }
 
-export function useRegistration() {
+export function useRegistration(initialPatientId?: string | null) {
   const [step, setStep] = useState(1)
   const [patientId, setPatientId] = useState<string | null>(null)
   const [patientSex, setPatientSex] = useState<'M' | 'F' | null>(null)
@@ -77,6 +77,17 @@ export function useRegistration() {
   const [step1InitialData, setStep1InitialData] = useState<Partial<Step1Data> | null>(null)
   const [socialHabitsInitialData, setSocialHabitsInitialData] = useState<SocialHabitsData | null>(null)
   const [loadingPatientData, setLoadingPatientData] = useState(false)
+
+  // لو فتحنا الصفحة بـ ?patientId=... (الدكتور بيكمّل ملف سجّله السكرتير)
+  // نحمّل بيانات المريض، وبعدها الدكتور/الأدمن يتنقل مباشرة للخطوة 2
+  // (الصفحة هي اللي بتقرر الخطوة حسب الدور)
+  useEffect(() => {
+    if (initialPatientId) {
+      setPatientId(initialPatientId)
+      loadPatientForEdit(initialPatientId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPatientId])
 
   // كل مرة تتغير فيها الخطوة (تقدم أو رجوع)، نطلع لفوق الصفحة
   useEffect(() => {
@@ -172,7 +183,7 @@ export function useRegistration() {
   }
 
   // STEP 1 — Receptionist creates patient
-  async function saveStep1(data: Step1Data) {
+  async function saveStep1(data: Step1Data, opts?: { draftOnly?: boolean }) {
     setSaving(true); setError(null)
     try {
       const mrn = buildMrn(data.first_visit_date, data.mrn_sequence)
@@ -223,9 +234,10 @@ export function useRegistration() {
         if (updErr) throw updErr
         patient = updated
       } else {
+        // ملف جديد → بانتظار الطبيب حتى يؤكده (الـ trigger في قاعدة البيانات بيمنع غير الدكتور/الأدمن من التأكيد)
         const { data: inserted, error: insErr } = await supabase
           .from('patients')
-          .insert(patientPayload)
+          .insert({ ...patientPayload, registration_status: 'pending_medical' })
           .select('id,mrn,sex')
           .single()
         if (insErr) {
@@ -264,7 +276,7 @@ export function useRegistration() {
 
       setPatientId(patient!.id)
       setPatientSex(patient!.sex)
-      setStep(2)
+      if (!opts?.draftOnly) setStep(2)
       return patient
     } catch (e: any) {
       setError(e.message)
@@ -275,8 +287,8 @@ export function useRegistration() {
   }
 
   // STEP 2 — Doctor saves medical data
-  async function saveStep2(data: any) {
-    if (!patientId) return
+  async function saveStep2(data: any): Promise<boolean> {
+    if (!patientId) return false
     setSaving(true); setError(null)
     try {
       const diag = data.diagnosis
@@ -399,9 +411,23 @@ export function useRegistration() {
         })
       }
 
+      // الدكتور هو اللي بيعمل Save & Confirm → الملف يبقى مؤكد
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error: confErr } = await supabase
+        .from('patients')
+        .update({
+          registration_status: 'confirmed',
+          confirmed_at: new Date().toISOString(),
+          confirmed_by: user?.id ?? null,
+        })
+        .eq('id', patientId)
+      if (confErr) throw confErr
+
       setStep(3)
+      return true
     } catch (e: any) {
       setError(e.message)
+      return false
     } finally {
       setSaving(false)
     }
