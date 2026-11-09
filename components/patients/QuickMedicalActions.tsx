@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLabResults } from '@/lib/hooks/useLabResults'
 import { useImaging } from '@/lib/hooks/useImaging'
@@ -358,44 +358,83 @@ function QuickImagingModal({ patientId, patientName, saving, onClose, onSave }: 
 // ────────────────────────────────────────────────────────────
 // Quick Plan Modal — خطة علاج جديدة سريعة (تربط بجلسة أولى مباشرة)
 // ────────────────────────────────────────────────────────────
-function QuickPlanModal({ patientId, patientName, scheduleSession, onClose, onDone }: any) {
+type PlanRow = {
+    rowId: string
+    regimen_id: string
+    intent: string
+    start_date: string
+    planned_cycles: string
+    cycle_interval_days: string
+}
+
+function QuickPlanModal({ patientId, patientName, onClose, onDone }: any) {
     const supabase = createClient()
     const [regimens, setRegimens] = useState<any[]>([])
     const [loadingRegimens, setLoadingRegimens] = useState(true)
-    const [form, setForm] = useState({
-        regimen_id: '', intent: 'curative', start_date: new Date().toISOString().split('T')[0],
-        planned_cycles: '', cycle_interval_days: '',
-    })
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
 
     const FREQUENCY_TO_DAYS: Record<string, number> = { daily: 1, weekly: 7, q2w: 14, q3w: 21, q4w: 28, monthly: 30 }
 
-    useState(() => {
+    function newRow(): PlanRow {
+        return {
+            rowId: Math.random().toString(36).slice(2),
+            regimen_id: '',
+            intent: 'curative',
+            start_date: new Date().toISOString().split('T')[0],
+            planned_cycles: '',
+            cycle_interval_days: '',
+        }
+    }
+
+    const [rows, setRows] = useState<PlanRow[]>([newRow()])
+
+    useEffect(() => {
         async function load() {
             const { data } = await supabase.from('chemo_regimens').select('*').eq('is_active', true).order('name')
             setRegimens(data || [])
             setLoadingRegimens(false)
         }
         load()
-    })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
-    const selectedRegimen = regimens.find(r => r.id === form.regimen_id)
+    function updateRow(rowId: string, patch: Partial<PlanRow>) {
+        setRows(prev => prev.map(r => r.rowId === rowId ? { ...r, ...patch } : r))
+    }
 
-    function handleRegimenSelect(id: string) {
-        const reg = regimens.find(r => r.id === id)
-        setForm(f => ({
-            ...f, regimen_id: id,
-            planned_cycles: reg?.standard_cycles ? String(reg.standard_cycles) : f.planned_cycles,
-            cycle_interval_days: reg ? String(FREQUENCY_TO_DAYS[reg.cycle_frequency] || 21) : f.cycle_interval_days,
-        }))
+    function handleRegimenSelect(rowId: string, regimenId: string) {
+        const reg = regimens.find(r => r.id === regimenId)
+        updateRow(rowId, {
+            regimen_id: regimenId,
+            planned_cycles: reg?.standard_cycles ? String(reg.standard_cycles) : '',
+            cycle_interval_days: reg ? String(FREQUENCY_TO_DAYS[reg.cycle_frequency] || 21) : '',
+        })
+    }
+
+    function addRow() {
+        setRows(prev => [...prev, newRow()])
+    }
+
+    function removeRow(rowId: string) {
+        setRows(prev => prev.length === 1 ? prev : prev.filter(r => r.rowId !== rowId))
     }
 
     async function handleSubmit() {
-        if (!form.regimen_id || !form.planned_cycles || !form.cycle_interval_days) {
-            setError('يرجى اختيار البروتوكول وعدد الدورات والفاصل الزمني')
+        // تحقق من كل الصفوف قبل أي حفظ
+        for (let i = 0; i < rows.length; i++) {
+            const r = rows[i]
+            if (!r.regimen_id || !r.planned_cycles || !r.cycle_interval_days) {
+                setError(`البروتوكول رقم ${i + 1}: يرجى اختيار البروتوكول وعدد الدورات والفاصل الزمني`)
+                return
+            }
+        }
+        const ids = rows.map(r => r.regimen_id)
+        if (new Set(ids).size !== ids.length) {
+            setError('نفس البروتوكول مضاف أكثر من مرة، احذف التكرار')
             return
         }
+
         setError('')
         setSaving(true)
         try {
@@ -403,21 +442,24 @@ function QuickPlanModal({ patientId, patientName, scheduleSession, onClose, onDo
                 .from('diagnoses').select('id').eq('patient_id', patientId)
                 .order('created_at', { ascending: false }).limit(1).maybeSingle()
 
-            const { data: plan, error: planErr } = await supabase
-                .from('treatment_plans')
-                .insert({
+            const payload = rows.map(r => {
+                const reg = regimens.find(x => x.id === r.regimen_id)
+                return {
                     patient_id: patientId,
                     diagnosis_id: diag?.id ?? null,
-                    intent: form.intent,
-                    protocol_name: selectedRegimen?.name || '',
-                    regimen_id: form.regimen_id,
-                    start_date: form.start_date,
-                    planned_cycles: parseInt(form.planned_cycles),
+                    intent: r.intent,
+                    protocol_name: reg?.name || '',
+                    regimen_id: r.regimen_id,
+                    start_date: r.start_date,
+                    planned_cycles: parseInt(r.planned_cycles),
                     completed_cycles: 0,
-                    cycle_interval_days: parseInt(form.cycle_interval_days),
+                    cycle_interval_days: parseInt(r.cycle_interval_days),
                     status: 'active',
-                })
-                .select('id').single()
+                }
+            })
+
+            // insert واحد لكل الصفوف: يا كلهم يتحفظوا يا ولا واحد
+            const { error: planErr } = await supabase.from('treatment_plans').insert(payload)
             if (planErr) throw planErr
 
             onDone()
@@ -428,17 +470,26 @@ function QuickPlanModal({ patientId, patientName, scheduleSession, onClose, onDo
         }
     }
 
+    const inputStyle: React.CSSProperties = {
+        width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7,
+        fontSize: 12, outline: 'none', boxSizing: 'border-box', fontFamily: 'Cairo',
+    }
+    const labelStyle: React.CSSProperties = {
+        fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5,
+    }
+
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,58,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
             onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 18, width: 460, direction: 'rtl', fontFamily: 'Cairo' }}>
-                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 18, width: 560, maxHeight: '90vh', overflowY: 'auto', direction: 'rtl', fontFamily: 'Cairo' }}>
+                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 5 }}>
                     <div>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>💊 خطة علاج جديدة</p>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: '#0b1f3a', margin: 0 }}>💊 خطط علاج جديدة</p>
                         <p style={{ fontSize: 11, color: '#8e97b5', fontFamily: 'DM Mono', margin: '4px 0 0' }}>{patientName}</p>
                     </div>
                     <button onClick={onClose} style={{ background: '#f7f8fc', border: '1px solid #dde2ee', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', fontSize: 14, color: '#8e97b5' }}>✕</button>
                 </div>
+
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {error && <div style={{ background: '#fde8e8', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#e53e3e' }}>{error}</div>}
 
@@ -446,51 +497,84 @@ function QuickPlanModal({ patientId, patientName, scheduleSession, onClose, onDo
                         <p style={{ fontSize: 12, color: '#8e97b5', textAlign: 'center' }}>جارٍ تحميل البروتوكولات...</p>
                     ) : (
                         <>
-                            <div>
-                                <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>البروتوكول *</label>
-                                <select value={form.regimen_id} onChange={e => handleRegimenSelect(e.target.value)}
-                                    style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                                    <option value="">— اختر البروتوكول —</option>
-                                    {regimens.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                </select>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                <div>
-                                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>عدد الدورات</label>
-                                    <input type="number" value={form.planned_cycles} onChange={e => setForm(f => ({ ...f, planned_cycles: e.target.value }))}
-                                        style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>الفاصل (أيام)</label>
-                                    <input type="number" value={form.cycle_interval_days} onChange={e => setForm(f => ({ ...f, cycle_interval_days: e.target.value }))}
-                                        style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
-                                </div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                <div>
-                                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>القصد العلاجي</label>
-                                    <select value={form.intent} onChange={e => setForm(f => ({ ...f, intent: e.target.value }))}
-                                        style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, fontFamily: 'Cairo', outline: 'none', boxSizing: 'border-box' }}>
-                                        <option value="curative">شفائي</option>
-                                        <option value="neoadjuvant">قبل الجراحة</option>
-                                        <option value="adjuvant">مساعد</option>
-                                        <option value="palliative">تلطيفي</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5580', display: 'block', marginBottom: 5 }}>تاريخ البدء</label>
-                                    <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                                        style={{ width: '100%', padding: '8px 11px', border: '1.5px solid #dde2ee', borderRadius: 7, fontSize: 12, outline: 'none', direction: 'ltr', boxSizing: 'border-box' }} />
-                                </div>
-                            </div>
+                            {rows.map((r, idx) => {
+                                const usedElsewhere = new Set(rows.filter(x => x.rowId !== r.rowId).map(x => x.regimen_id))
+                                return (
+                                    <div key={r.rowId} style={{ border: '1.5px solid #dde2ee', borderRadius: 12, overflow: 'hidden' }}>
+                                        <div style={{ background: '#f7f8fc', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <p style={{ fontSize: 12, fontWeight: 700, color: '#1a8a78', margin: 0 }}>بروتوكول {idx + 1}</p>
+                                            {rows.length > 1 && (
+                                                <button onClick={() => removeRow(r.rowId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53e3e', fontSize: 11, fontWeight: 700 }}>
+                                                    🗑️ حذف
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                            <div>
+                                                <label style={labelStyle}>البروتوكول *</label>
+                                                <select value={r.regimen_id} onChange={e => handleRegimenSelect(r.rowId, e.target.value)} style={inputStyle}>
+                                                    <option value="">— اختر البروتوكول —</option>
+                                                    {regimens.map(reg => (
+                                                        <option key={reg.id} value={reg.id} disabled={usedElsewhere.has(reg.id)}>
+                                                            {reg.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                                <div>
+                                                    <label style={labelStyle}>عدد الدورات *</label>
+                                                    <input type="number" min={1} value={r.planned_cycles}
+                                                        onChange={e => updateRow(r.rowId, { planned_cycles: e.target.value })}
+                                                        style={inputStyle} />
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>الفاصل (أيام) *</label>
+                                                    <input type="number" min={1} value={r.cycle_interval_days}
+                                                        onChange={e => updateRow(r.rowId, { cycle_interval_days: e.target.value })}
+                                                        style={inputStyle} />
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                                <div>
+                                                    <label style={labelStyle}>القصد العلاجي</label>
+                                                    <select value={r.intent} onChange={e => updateRow(r.rowId, { intent: e.target.value })} style={inputStyle}>
+                                                        <option value="curative">شفائي</option>
+                                                        <option value="neoadjuvant">قبل الجراحة</option>
+                                                        <option value="adjuvant">مساعد</option>
+                                                        <option value="palliative">تلطيفي</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>تاريخ البدء</label>
+                                                    <input type="date" value={r.start_date}
+                                                        onChange={e => updateRow(r.rowId, { start_date: e.target.value })}
+                                                        style={inputStyle} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+
+                            <button onClick={addRow} style={{
+                                padding: '10px', borderRadius: 10, border: '1.5px dashed #2ab8a0',
+                                background: '#f0fdf4', color: '#1a8a78', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            }}>
+                                + إضافة بروتوكول آخر
+                            </button>
                         </>
                     )}
                 </div>
-                <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
-                    <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
-                    <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
-                        {saving ? 'جارٍ الحفظ...' : 'إنشاء خطة العلاج'}
-                    </button>
+
+                <div style={{ padding: '14px 24px', borderTop: '1px solid #eef0f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', bottom: 0, background: '#fff' }}>
+                    <span style={{ fontSize: 11, color: '#8e97b5' }}>{rows.length} بروتوكول سيتم حفظه</span>
+                    <div style={{ display: 'flex', gap: 9 }}>
+                        <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #dde2ee', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#4a5580' }}>إلغاء</button>
+                        <button onClick={handleSubmit} disabled={saving || loadingRegimens} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a8a78', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
+                            {saving ? 'جارٍ الحفظ...' : `حفظ كل الخطط (${rows.length})`}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
