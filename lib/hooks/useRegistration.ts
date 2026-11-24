@@ -1,10 +1,28 @@
 // ============================================================
-// lib/hooks/useRegistration.ts — Multi-step form state
+// lib/hooks/useRegistration.ts — Multi-step form state (Phase A fixes)
+//
+// التعديلات عن النسخة القديمة:
+//  1. saveStep1 بقت بتحفظ العادات الاجتماعية (التدخين/الطمث) — كانت بتضيع.
+//  2. saveStep2 ما بقتش تعمل upsert بقيم null على أعمدة Step1
+//     (smoking_status / menstrual_status...) — كانت بتمسحها.
+//  3. saveStep2 بتحفظ icd10_code / icd10_code_2.
+//  4. كل عملية كتابة بتتأكد من الـ error (قبل كده pathology/protocols/
+//     medical_history/vitals كانت بتفشل بصمت).
+//  5. saveStep2 بترجّع true/false (الصفحة كانت بتعمل redirect حتى لو فشل الحفظ).
+//  6. إعادة المحاولة آمنة: لو الضغط على Save اتكرر، بيحدّث نفس التشخيص بدل
+//     ما يعمل تشخيص مكرر.
+//  7. الحد الأدنى من البيانات (validateMinimumDataset) بيتفرض على السيرفر كمان.
+//  8. التاريخ العائلي بيتحفظ في oncology_fh_details + أول عنصر في
+//     oncology_fh_person/type (توافق مع الشاشات القديمة).
 // ============================================================
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { z } from 'zod'
+import { validateMinimumDataset } from '@/lib/validation/minimumDataset'
 
-import { z } from "zod"
+function friendlyError(message: string): string {
+  return message || 'حدث خطأ غير متوقع'
+}
 
 export const schema = z.object({
   first_name_ar: z.string().min(2, 'الاسم الأول مطلوب'),
@@ -48,9 +66,9 @@ export const schema = z.object({
 
 export type Step1Data = z.infer<typeof schema>
 
-// ⬅️ جديد: شكل بيانات العادات الاجتماعية (Step1Personal بيديرها كـ local state مش react-hook-form)
+// '' = غير محدد (مختلفة عن 'never' = مش مدخّن). الافتراضي لازم يكون غير محدد.
 export type SocialHabitsData = {
-  smoking_status: 'never' | 'cigarettes' | 'former' | 'passive' | 'other'
+  smoking_status: '' | 'never' | 'cigarettes' | 'former' | 'passive' | 'other'
   cigarettes_pack_per_day: string
   cigarettes_duration_years: string
   smoking_stopped: boolean
@@ -58,34 +76,48 @@ export type SocialHabitsData = {
   menstrual_status: string
 }
 
+/** اللي Step1Personal بيبعته فعليًا (Step1Data + social_habits) */
+export type Step1Submit = Step1Data & { social_habits?: Partial<SocialHabitsData> }
+
 function buildMrn(firstVisitDate: string, sequence: string): string {
-  const year = new Date(firstVisitDate).getFullYear()
-  const padded = sequence.padStart(4, '0')
-  return `${year}-${padded}`
+  const year = firstVisitDate.slice(0, 4) // 'YYYY-MM-DD' — من غير new Date() عشان مفيش تحويل timezone
+  if (!/^\d{4}$/.test(year)) throw new Error('تاريخ أول زيارة غير صالح')
+  return `${year}-${sequence.padStart(4, '0')}`
+}
+
+function num(v: string | number | null | undefined): number | null {
+  if (v === undefined || v === null || String(v).trim() === '') return null
+  const n = parseFloat(String(v))
+  return Number.isNaN(n) ? null : n
+}
+
+function int(v: string | number | null | undefined): number | null {
+  const n = num(v)
+  return n === null ? null : Math.trunc(n)
 }
 
 export function useRegistration() {
   const [step, setStep] = useState(1)
   const [patientId, setPatientId] = useState<string | null>(null)
   const [patientSex, setPatientSex] = useState<'M' | 'F' | null>(null)
-  const [patientNotPresent, setPatientNotPresent] = useState(false) // ⬅️ جديد
+  const [patientDob, setPatientDob] = useState<string | null>(null)
+  const [patientNotPresent, setPatientNotPresent] = useState(false)
+  const [savedDiagnosisId, setSavedDiagnosisId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
-  // ⬅️ جديد: بيانات المريض اللي بترجع من Supabase عشان نملأ بيها Step1 لما نرجعله
   const [step1InitialData, setStep1InitialData] = useState<Partial<Step1Data> | null>(null)
   const [socialHabitsInitialData, setSocialHabitsInitialData] = useState<SocialHabitsData | null>(null)
   const [loadingPatientData, setLoadingPatientData] = useState(false)
 
-  // كل مرة تتغير فيها الخطوة (تقدم أو رجوع)، نطلع لفوق الصفحة
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [step])
 
-  // ⬅️ جديد: يجيب بيانات المريض المحفوظة فعليًا من Supabase (patients + patient_identities + medical_history)
+  // يجيب بيانات المريض المحفوظة فعليًا (patients + patient_identities + medical_history)
   async function loadPatientForEdit(id: string) {
     setLoadingPatientData(true)
     setError(null)
@@ -112,7 +144,6 @@ export function useRegistration() {
       const insurance_id = identities?.find(i => i.id_type === 'INSURANCE')?.id_number || ''
       const passport = identities?.find(i => i.id_type === 'PASSPORT')?.id_number || ''
 
-      // الرقم التسلسلي بيتفصل من MRN بصيغة "YYYY-0001"
       const mrnParts = (patient?.mrn || '').split('-')
       const mrnSeq = mrnParts.length > 1 ? mrnParts[1] : ''
 
@@ -147,7 +178,7 @@ export function useRegistration() {
       })
 
       setSocialHabitsInitialData({
-        smoking_status: (hist?.smoking_status as SocialHabitsData['smoking_status']) || 'never',
+        smoking_status: (hist?.smoking_status as SocialHabitsData['smoking_status']) || '',
         cigarettes_pack_per_day: hist?.cigarettes_pack_per_day != null ? String(hist.cigarettes_pack_per_day) : '',
         cigarettes_duration_years: hist?.cigarettes_duration_years != null ? String(hist.cigarettes_duration_years) : '',
         smoking_stopped: !!hist?.smoking_stopped,
@@ -156,14 +187,15 @@ export function useRegistration() {
       })
 
       if (patient?.sex) setPatientSex(patient.sex)
+      if (patient?.date_of_birth) setPatientDob(patient.date_of_birth)
     } catch (e: any) {
-      setError(e.message)
+      console.error('[registration] loadPatientForEdit', e)
+      setError(friendlyError(e.message))
     } finally {
       setLoadingPatientData(false)
     }
   }
 
-  // ⬅️ جديد: الرجوع لـ Step1 مع جلب بيانات المريض الحالية أول ما نرجع
   async function goBackToStep1() {
     if (patientId) {
       await loadPatientForEdit(patientId)
@@ -171,18 +203,18 @@ export function useRegistration() {
     setStep(1)
   }
 
-  // STEP 1 — Receptionist creates patient
-  async function saveStep1(data: Step1Data) {
+  // ── STEP 1 — Receptionist creates patient ─────────────────
+  async function saveStep1(data: Step1Submit) {
     setSaving(true); setError(null)
     try {
       const mrn = buildMrn(data.first_visit_date, data.mrn_sequence)
 
-      // لو إحنا رجعنا من Step2 وعدّلنا بيانات نفس المريض، منعملش تحقق "الرقم مستخدم" ضد نفسه
-      const { data: existing } = await supabase
+      const { data: existing, error: exErr } = await supabase
         .from('patients')
         .select('id')
         .eq('mrn', mrn)
         .maybeSingle()
+      if (exErr) throw exErr
 
       if (existing && existing.id !== patientId) {
         throw new Error(`رقم الملف ${mrn} مستخدم بالفعل — من فضلك اختر رقمًا مختلفًا`)
@@ -198,22 +230,21 @@ export function useRegistration() {
         sex: data.sex,
         nationality: data.nationality || null,
         marital_status: data.marital_status || null,
-        num_children: data.num_children ? parseInt(data.num_children) : null,
+        num_children: int(data.num_children),
         occupation: data.occupation || null,
         mobile_primary: data.mobile_primary,
         email: data.email || null,
         governorate: data.governorate || null,
         district: data.district || null,
-        postal_code: data.postal_code || null, // ⬅️ جديد: كان بيتاخد من اليوزر ومكنش بيتحفظ
+        postal_code: data.postal_code || null,
         referral_source: data.referral_source || null,
         referring_provider: data.referring_person_name || null,
-        first_visit_date: data.first_visit_date || null, // ⬅️ جديد: نفس الملاحظة
+        first_visit_date: data.first_visit_date || null,
       }
 
       let patient: { id: string; mrn: string; sex: 'M' | 'F' } | null = null
 
       if (patientId) {
-        // ⬅️ رجعنا من Step2 وعدّلنا بيانات نفس المريض → update بدل insert
         const { data: updated, error: updErr } = await supabase
           .from('patients')
           .update(patientPayload)
@@ -237,194 +268,246 @@ export function useRegistration() {
         patient = inserted
       }
 
+      // الهويات: نمسح ونعيد الإدخال (حتى لو المستخدم مسح كل الأرقام بعد الرجوع)
       const identities = [
         { id_type: 'NID', id_number: data.nid },
         { id_type: 'INSURANCE', id_number: data.insurance_id },
         { id_type: 'PASSPORT', id_number: data.passport },
       ].filter(i => i.id_number?.trim())
 
+      const { error: delErr } = await supabase.from('patient_identities').delete().eq('patient_id', patient!.id)
+      if (delErr) throw delErr
       if (identities.length > 0) {
-        // نمسح القديم ونعيد الإدخال عشان نتجنب تكرار الصفوف لو عدّلنا بعد الرجوع
-        await supabase.from('patient_identities').delete().eq('patient_id', patient!.id)
-        await supabase.from('patient_identities').insert(
+        const { error: idErr } = await supabase.from('patient_identities').insert(
           identities.map(i => ({ ...i, patient_id: patient!.id }))
         )
+        if (idErr) throw idErr
       }
 
-      if (data.weight_kg || data.height_cm || data.bsa || data.bmi || data.nutri_score) {
-        await supabase.from('medical_history').upsert({
-          patient_id: patient!.id,
-          weight_kg: data.weight_kg ? parseFloat(data.weight_kg) : null,
-          height_cm: data.height_cm ? parseFloat(data.height_cm) : null,
-          bsa: data.bsa ? parseFloat(data.bsa) : null,
-          bmi: data.bmi ? parseFloat(data.bmi) : null,
-          nutri_score: data.nutri_score ? parseFloat(data.nutri_score) : null,
-        }, { onConflict: 'patient_id' })
+      // medical_history: القياسات الجسدية + العادات الاجتماعية (ملك Step1)
+      const sh = data.social_habits
+      const histPayload: Record<string, any> = { patient_id: patient!.id }
+
+      if (!patientNotPresent) {
+        histPayload.weight_kg = num(data.weight_kg)
+        histPayload.height_cm = num(data.height_cm)
+        histPayload.bsa = num(data.bsa)
+        histPayload.bmi = num(data.bmi)
+        histPayload.nutri_score = num(data.nutri_score)
       }
+
+      if (sh) {
+        const smokes = sh.smoking_status === 'cigarettes' || sh.smoking_status === 'former'
+        histPayload.smoking_status = sh.smoking_status || null // '' = غير محدد → null
+        histPayload.cigarettes_pack_per_day = smokes ? num(sh.cigarettes_pack_per_day) : null
+        histPayload.cigarettes_duration_years = smokes ? num(sh.cigarettes_duration_years) : null
+        histPayload.smoking_stopped = smokes ? !!sh.smoking_stopped : null
+        histPayload.other_habit_details = sh.smoking_status === 'other' ? (sh.other_habit_details || null) : null
+        histPayload.menstrual_status = data.sex === 'F' ? (sh.menstrual_status || null) : null
+      }
+
+      const { error: histErr } = await supabase
+        .from('medical_history')
+        .upsert(histPayload, { onConflict: 'patient_id' })
+      if (histErr) throw histErr
 
       setPatientId(patient!.id)
       setPatientSex(patient!.sex)
+      setPatientDob(data.date_of_birth)
       setStep(2)
       return patient
     } catch (e: any) {
-      setError(e.message)
+      console.error('[registration] saveStep1', e)
+      setError(friendlyError(e.message))
       return null
     } finally {
       setSaving(false)
     }
   }
 
-  // STEP 2 — Doctor saves medical data
-  async function saveStep2(data: any) {
-    if (!patientId) return
+  // ── STEP 2 — Doctor saves medical data ────────────────────
+  // بترجّع true لو كل شيء اتحفظ. الصفحة لازم تعمل redirect بس لو true.
+  async function saveStep2(data: any): Promise<boolean> {
+    if (!patientId) {
+      setError('لا يوجد مريض مسجل — ارجع للخطوة الأولى')
+      return false
+    }
     setSaving(true); setError(null)
     try {
+      // 1) الحد الأدنى من البيانات (مفروض كمان على السيرفر، مش بس في الفورم)
+      const problems = validateMinimumDataset(
+        { diagnosis: data.diagnosis, history: data.history },
+        { patientNotPresent, dateOfBirth: patientDob },
+      )
+      if (problems.length > 0) throw new Error(problems.join(' • '))
+
       const diag = data.diagnosis
+      const hist = data.history
       const isDouble = diag.double_primary === 'yes'
       const isMeta = diag.metastasis_flag === 'yes'
 
-      const { data: diagRow, error: diagErr } = await supabase
-        .from('diagnoses')
-        .insert({
-          patient_id: patientId,
-          confirmed_cancer_patient: diag.confirmed_cancer_patient === true || diag.confirmed_cancer_patient === 'yes',
-          chief_complaint: diag.chief_complaint || null,
-          double_primary: isDouble,
-          primary_site: diag.primary_site || null,
-          histology: diag.histology || null,
-          primary_site_2: isDouble ? (diag.primary_site_2 || null) : null,
-          histology_2: isDouble ? (diag.histology_2 || null) : null,
-          stage: diag.stage || null,
-          grade: diag.grade || null,
-          laterality: diag.laterality || null,
-          tnm_t: diag.tnm_t || null,
-          tnm_n: diag.tnm_n || null,
-          tnm_m: diag.tnm_m || null,
-          is_metastatic: isMeta,
-          metastatic_sites: isMeta ? (diag.metastatic_sites || null) : null,
-          treatment_intent: diag.treatment_intent || null,
-          date_of_diagnosis: diag.date_of_diagnosis || null,
-          sample_type: diag.sample_type || null,
-          liquid_type: diag.sample_type === 'liquid' ? (diag.liquid_type || null) : null,
-          final_pathology_report: diag.final_pathology_report || null,
-        })
-        .select('id').single()
-      if (diagErr) throw diagErr
+      // 2) التشخيص (insert أول مرة، update لو المحاولة اتكررت)
+      const diagPayload = {
+        patient_id: patientId,
+        confirmed_cancer_patient: diag.confirmed_cancer_patient === true || diag.confirmed_cancer_patient === 'yes',
+        chief_complaint: diag.chief_complaint || null,
+        double_primary: isDouble,
+        primary_site: diag.primary_site || null,
+        icd10_code: diag.icd10_code || null,
+        histology: diag.histology || null,
+        primary_site_2: isDouble ? (diag.primary_site_2 || null) : null,
+        icd10_code_2: isDouble ? (diag.icd10_code_2 || null) : null,
+        histology_2: isDouble ? (diag.histology_2 || null) : null,
+        stage: diag.stage || null,
+        grade: diag.grade || null,
+        laterality: diag.laterality || null,
+        tnm_t: diag.tnm_t || null,
+        tnm_n: diag.tnm_n || null,
+        tnm_m: diag.tnm_m || null,
+        is_metastatic: isMeta,
+        metastatic_sites: isMeta ? (diag.metastatic_sites || null) : null,
+        treatment_intent: diag.treatment_intent || null,
+        date_of_diagnosis: diag.date_of_diagnosis || null,
+        sample_type: diag.sample_type || null,
+        liquid_type: diag.sample_type === 'liquid' ? (diag.liquid_type || null) : null,
+        final_pathology_report: diag.final_pathology_report || null,
+      }
 
-      // اختبارات الباثولوجي (IHC + Molecular)
+      let diagnosisId = savedDiagnosisId
+      if (diagnosisId) {
+        const { error: updErr } = await supabase.from('diagnoses').update(diagPayload).eq('id', diagnosisId)
+        if (updErr) throw updErr
+      } else {
+        const { data: diagRow, error: diagErr } = await supabase
+          .from('diagnoses')
+          .insert(diagPayload)
+          .select('id')
+          .single()
+        if (diagErr) throw diagErr
+        diagnosisId = diagRow.id as string
+        setSavedDiagnosisId(diagnosisId)
+      }
+
+      // 3) اختبارات الباثولوجي (IHC + Molecular) — نمسح بتاعة نفس التشخيص ونعيد (للـ retry)
+      const { error: ptDelErr } = await supabase.from('pathology_tests').delete().eq('diagnosis_id', diagnosisId)
+      if (ptDelErr) throw ptDelErr
+
       const allTests = [
         ...((data.ihcTests || []).map((t: any) => ({ ...t, category: 'ihc' }))),
         ...((data.molecularTests || []).map((t: any) => ({ ...t, category: 'molecular' }))),
       ].filter((t: any) => t.test_name)
 
       if (allTests.length > 0) {
-        await supabase.from('pathology_tests').insert(
+        const { error: ptErr } = await supabase.from('pathology_tests').insert(
           allTests.map((t: any) => ({
             patient_id: patientId,
-            diagnosis_id: diagRow.id,
+            diagnosis_id: diagnosisId,
             category: t.category,
             test_name: t.test_name,
             modality: t.modality || null,
-            result_numeric: t.result_numeric ? parseFloat(t.result_numeric) : null,
+            result_numeric: num(t.result_numeric),
             result_text: t.result_text || null,
             test_date: t.test_date || null,
           }))
         )
+        if (ptErr) throw ptErr
       }
 
-      // بروتوكولات العلاج السابقة (لو مريض مؤكد الإصابة)
-      const priorProtocols = data.priorProtocols || []
+      // 4) بروتوكولات العلاج السابقة
+      const { error: ppDelErr } = await supabase.from('prior_treatment_protocols').delete().eq('diagnosis_id', diagnosisId)
+      if (ppDelErr) throw ppDelErr
+
+      const priorProtocols = (data.priorProtocols || []).filter((p: any) => p.protocol_name)
       if (priorProtocols.length > 0) {
-        await supabase.from('prior_treatment_protocols').insert(
-          priorProtocols
-            .filter((p: any) => p.protocol_name)
-            .map((p: any) => ({
-              patient_id: patientId,
-              diagnosis_id: diagRow.id,
-              protocol_name: p.protocol_name,
-              num_cycles: p.num_cycles ? parseInt(p.num_cycles) : null,
-              duration_months: p.duration_months ? parseFloat(p.duration_months) : null,
-              notes: p.notes || null,
-            }))
+        const { error: ppErr } = await supabase.from('prior_treatment_protocols').insert(
+          priorProtocols.map((p: any) => ({
+            patient_id: patientId,
+            diagnosis_id: diagnosisId,
+            protocol_name: p.protocol_name,
+            num_cycles: int(p.num_cycles),
+            duration_months: num(p.duration_months),
+            notes: p.notes || null,
+          }))
         )
+        if (ppErr) throw ppErr
       }
 
-      // التاريخ المرضي — upsert لأن Step1 غالبًا عمل أول صف
-      const hist = data.history
-      await supabase.from('medical_history')
-        .upsert({
-          patient_id: patientId,
-          comorbidities: hist.comorbidities || [],
-          past_history: hist.past_history || null,
-          family_history_conditions: hist.family_history_conditions || [],
-          family_history_other: hist.family_history_other || null,
-          oncology_fh: (hist.oncology_fh_details || []).length > 0,
-          oncology_fh_details: hist.oncology_fh_details || [],
-          ongoing_medications: hist.ongoing_medications || [],
-          ongoing_medications_other: hist.ongoing_medications_other || null,
-          previous_surgeries: hist.previous_surgeries || null,
-          previous_chemo: hist.previous_chemo || null,
-          previous_radiation: hist.previous_radiation || null,
-          drug_allergies: hist.drug_allergies || null,
-          ecog_ps: hist.ecog_ps || null,
-          ocp_use: hist.ocp_use || null, // ⬅️ جديد: OCP (إناث فقط)
-          smoking_status: hist.smoking_status || null,
-          cigarettes_pack_per_day: (hist.smoking_status === 'cigarettes' || hist.smoking_status === 'former') && hist.cigarettes_pack_per_day
-            ? parseFloat(hist.cigarettes_pack_per_day) : null,
-          cigarettes_duration_years: (hist.smoking_status === 'cigarettes' || hist.smoking_status === 'former') && hist.cigarettes_duration_years
-            ? parseFloat(hist.cigarettes_duration_years) : null,
-          smoking_stopped: (hist.smoking_status === 'cigarettes' || hist.smoking_status === 'former')
-            ? !!hist.smoking_stopped : null, // ⬅️ جديد: كان بيضيع قبل كده
-          other_habit_details: hist.smoking_status === 'other' ? (hist.other_habit_details || null) : null,
-          menstrual_status: hist.menstrual_status || null,
-        }, { onConflict: 'patient_id' })
+      // 5) التاريخ المرضي — الأعمدة بتاعة Step2 بس.
+      //    (التدخين/الطمث/القياسات ملك Step1 ومش بنلمسها هنا)
+      const fhDetails: { person: string; type: string }[] = hist.oncology_fh_details || []
+      const { error: histErr } = await supabase.from('medical_history').upsert({
+        patient_id: patientId,
+        comorbidities: hist.comorbidities || [],
+        past_history: hist.past_history || null,
+        family_history_conditions: hist.family_history_conditions || [],
+        family_history_other: hist.family_history_other || null,
+        oncology_fh: fhDetails.length > 0,
+        oncology_fh_details: fhDetails,
+        oncology_fh_person: fhDetails[0]?.person || null, // توافق مع الشاشات القديمة
+        oncology_fh_type: fhDetails[0]?.type || null,
+        ongoing_medications: hist.ongoing_medications || [],
+        ongoing_medications_other: hist.ongoing_medications_other || null,
+        previous_surgeries: hist.previous_surgeries || null,
+        previous_chemo: hist.previous_chemo || null,
+        previous_radiation: hist.previous_radiation || null,
+        drug_allergies: hist.drug_allergies || null,
+        ecog_ps: patientNotPresent ? null : (hist.ecog_ps || null),
+        ocp_use: hist.ocp_use || null,
+      }, { onConflict: 'patient_id' })
+      if (histErr) throw histErr
 
-      // حفظ أول قراءة للعلامات الحيوية (لو المستخدم دخل أي قيمة منها)
+      // 6) أول قراءة علامات حيوية (لو اتدخل أي قيمة)
       const vitals = hist.vitals
-      if (vitals && Object.values(vitals).some((v: any) => v)) {
-        await supabase.from('vital_signs').insert({
+      if (!patientNotPresent && vitals && Object.values(vitals).some((v: any) => v)) {
+        const { error: vErr } = await supabase.from('vital_signs').insert({
           patient_id: patientId,
-          temperature_c: vitals.temperature_c ? parseFloat(vitals.temperature_c) : null,
-          bp_systolic: vitals.bp_systolic ? parseInt(vitals.bp_systolic) : null,
-          bp_diastolic: vitals.bp_diastolic ? parseInt(vitals.bp_diastolic) : null,
-          pulse_bpm: vitals.pulse_bpm ? parseInt(vitals.pulse_bpm) : null,
-          respiratory_rate: vitals.respiratory_rate ? parseInt(vitals.respiratory_rate) : null,
-          spo2_pct: vitals.spo2_pct ? parseInt(vitals.spo2_pct) : null,
-          pain_score: vitals.pain_score ? parseInt(vitals.pain_score) : null,
-          pallor: vitals.pallor === '' || !vitals.pallor ? null : vitals.pallor === 'yes',
-          jaundice: vitals.jaundice === '' || !vitals.jaundice ? null : vitals.jaundice === 'yes',
+          temperature_c: num(vitals.temperature_c),
+          bp_systolic: int(vitals.bp_systolic),
+          bp_diastolic: int(vitals.bp_diastolic),
+          pulse_bpm: int(vitals.pulse_bpm),
+          respiratory_rate: int(vitals.respiratory_rate),
+          spo2_pct: int(vitals.spo2_pct),
+          pain_score: int(vitals.pain_score),
+          pallor: !vitals.pallor ? null : vitals.pallor === 'yes',
+          jaundice: !vitals.jaundice ? null : vitals.jaundice === 'yes',
           hbv_status: vitals.hbv_status || null,
           hcv_status: vitals.hcv_status || null,
           hiv_status: vitals.hiv_status || null,
         })
+        if (vErr) throw vErr
       }
 
-      setStep(3)
+      return true
     } catch (e: any) {
-      setError(e.message)
+      console.error('[registration] saveStep2', e)
+      setError(friendlyError(e.message))
+      return false
     } finally {
       setSaving(false)
     }
   }
 
-  // STEP 3 — Insurance + payment
+  // ── STEP 3 — Insurance + payment (مش مربوطة بصفحة التسجيل الحالية) ──
   async function saveStep3(data: any) {
     if (!patientId) return
     setSaving(true); setError(null)
     try {
-      await supabase.from('insurance_policies')
+      const r1 = await supabase.from('insurance_policies')
         .insert({ patient_id: patientId, ...data.insurance })
-      await supabase.from('payment_plans')
+      if (r1.error) throw r1.error
+      const r2 = await supabase.from('payment_plans')
         .insert({ patient_id: patientId, ...data.payment })
+      if (r2.error) throw r2.error
       setStep(4)
     } catch (e: any) {
-      setError(e.message)
+      console.error('[registration] saveStep3', e)
+      setError(friendlyError(e.message))
     } finally {
       setSaving(false)
     }
   }
 
-  // STEP 4 — Sign consent
+  // ── STEP 4 — Sign consent ─────────────────────────────────
   async function signConsent(consentType: string) {
     if (!patientId) return
     const { error: err } = await supabase
@@ -436,7 +519,7 @@ export function useRegistration() {
       })
       .eq('patient_id', patientId)
       .eq('consent_type', consentType)
-    if (err) setError(err.message)
+    if (err) setError(friendlyError(err.message))
   }
 
   async function completeRegistration() {
@@ -457,8 +540,9 @@ export function useRegistration() {
   return {
     step, setStep, patientId, patientSex, saving, error,
     patientNotPresent, setPatientNotPresent,
-    step1InitialData, socialHabitsInitialData, loadingPatientData, // ⬅️ جديد
-    goBackToStep1, // ⬅️ جديد
+    step1InitialData, socialHabitsInitialData, loadingPatientData,
+    goBackToStep1,
     saveStep1, saveStep2, saveStep3, signConsent, completeRegistration,
   }
 }
+
